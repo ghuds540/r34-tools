@@ -1,0 +1,10 @@
+{
+    "name": "r34 tools",
+    "description": "A simple extension to enhance rule34.xxx",
+    "version": "1.0",
+    "manifest_version": 3,
+    "action": {
+        "default_popup": "extension_pane.html",
+        "default_icon": "r34_tools.png"
+    }
+}
