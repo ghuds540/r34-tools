@@ -16,11 +16,15 @@ async function loadSettings() {
     conflictAction: 'overwrite',
     downloadKey: '',
     savePageKey: '',
-    amoledTheme: true
+    amoledTheme: true,
+    highQualityPreviews: true,
+    alwaysUseFullResolution: false
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
   document.getElementById('amoledTheme').checked = settings.amoledTheme;
+  document.getElementById('highQualityPreviews').checked = settings.highQualityPreviews;
+  document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -67,11 +71,34 @@ function setupEventListeners() {
     clearShortcut('savePageKey', 'save-page');
   });
 
-  // Save settings button
-  document.getElementById('saveSettings').addEventListener('click', saveSettings);
-
   // Reset settings button
   document.getElementById('resetSettings').addEventListener('click', resetSettings);
+
+  // Auto-save on change for all settings
+  document.getElementById('conflictAction').addEventListener('change', autoSaveSettings);
+  document.getElementById('amoledTheme').addEventListener('change', autoSaveSettings);
+  document.getElementById('highQualityPreviews').addEventListener('change', autoSaveSettings);
+  document.getElementById('alwaysUseFullResolution').addEventListener('change', autoSaveSettings);
+
+  // Preview quality checkboxes - disable first when second is checked
+  const highQualityCheckbox = document.getElementById('highQualityPreviews');
+  const fullResCheckbox = document.getElementById('alwaysUseFullResolution');
+
+  fullResCheckbox.addEventListener('change', () => {
+    if (fullResCheckbox.checked) {
+      highQualityCheckbox.disabled = true;
+      highQualityCheckbox.parentElement.style.opacity = '0.5';
+    } else {
+      highQualityCheckbox.disabled = false;
+      highQualityCheckbox.parentElement.style.opacity = '1';
+    }
+  });
+
+  // Set initial state
+  if (fullResCheckbox.checked) {
+    highQualityCheckbox.disabled = true;
+    highQualityCheckbox.parentElement.style.opacity = '0.5';
+  }
 }
 
 // Start recording keyboard shortcut
@@ -198,15 +225,17 @@ function clearShortcut(inputId, commandName) {
   loadCurrentShortcuts();
 }
 
-// Save settings
-async function saveSettings() {
+// Auto-save settings when changed
+async function autoSaveSettings() {
   const settings = {
     conflictAction: document.getElementById('conflictAction').value,
-    amoledTheme: document.getElementById('amoledTheme').checked
+    amoledTheme: document.getElementById('amoledTheme').checked,
+    highQualityPreviews: document.getElementById('highQualityPreviews').checked,
+    alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked
   };
 
   await browser.storage.local.set(settings);
-  showStatus('Settings saved successfully!', 'success');
+  showStatus('Saved', 'success');
 }
 
 // Reset settings to defaults
@@ -215,7 +244,9 @@ async function resetSettings() {
     conflictAction: 'overwrite',
     downloadKey: '',
     savePageKey: '',
-    amoledTheme: true
+    amoledTheme: true,
+    highQualityPreviews: true,
+    alwaysUseFullResolution: false
   };
 
   await browser.storage.local.set(defaults);

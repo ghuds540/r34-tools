@@ -419,6 +419,14 @@ function createSidebarSaveButton() {
   }
 }
 
+// Remove right sidebar ads to give more room for posts
+function removeRightSidebar() {
+  const rightSidebar = document.querySelector('.postListSidebarRight');
+  if (rightSidebar) {
+    rightSidebar.remove();
+  }
+}
+
 // Apply AMOLED theme if enabled
 async function applyAmoledTheme() {
   const settings = await browser.storage.local.get({ amoledTheme: true });
@@ -627,14 +635,96 @@ function addThumbnailDownloadButtons() {
 
     wrapper.appendChild(downloadBtn);
 
+    // Create full resolution button
+    const fullResBtn = document.createElement('button');
+    fullResBtn.className = 'r34-thumb-fullres';
+    fullResBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+      </svg>
+    `;
+    fullResBtn.title = 'Load full resolution';
+    fullResBtn.style.cssText = `
+      position: absolute;
+      top: 4px;
+      left: 36px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #66b3ff 0%, #3399ff 100%);
+      color: #000;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      transition: all 0.2s ease;
+      opacity: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 0;
+    `;
+
+    wrapper.appendChild(fullResBtn);
+
+    // Create quality indicator badge
+    const qualityBadge = document.createElement('div');
+    qualityBadge.className = 'r34-quality-badge';
+    qualityBadge.style.cssText = `
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 101;
+      border: 1px solid #333;
+    `;
+    wrapper.appendChild(qualityBadge);
+
+    // Update badge text based on quality
+    const updateBadge = () => {
+      const quality = imageQuality.get(img) || 'T';
+      qualityBadge.textContent = quality;
+      // Color code: T=red, S=yellow, F=green
+      if (quality === 'F') {
+        qualityBadge.style.background = 'rgba(0, 150, 0, 0.9)';
+      } else if (quality === 'S') {
+        qualityBadge.style.background = 'rgba(180, 140, 0, 0.9)';
+      } else {
+        qualityBadge.style.background = 'rgba(150, 0, 0, 0.9)';
+      }
+    };
+
+    // Store the updater so it can be called when quality changes
+    badgeUpdaters.set(img, updateBadge);
+
     // Show on hover
     wrapper.addEventListener('mouseenter', () => {
       downloadBtn.style.opacity = '1';
       downloadBtn.style.pointerEvents = 'auto';
+      fullResBtn.style.opacity = '1';
+      fullResBtn.style.pointerEvents = 'auto';
+      updateBadge();
+      qualityBadge.style.opacity = '1';
     });
     wrapper.addEventListener('mouseleave', () => {
       downloadBtn.style.opacity = '0';
       downloadBtn.style.pointerEvents = 'none';
+      fullResBtn.style.opacity = '0';
+      fullResBtn.style.pointerEvents = 'none';
+      qualityBadge.style.opacity = '0';
     });
 
     downloadBtn.onclick = async (e) => {
@@ -745,11 +835,218 @@ function addThumbnailDownloadButtons() {
         showNotification(`Error: ${error.message}`, 'error');
       }
     };
+
+    fullResBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const postUrl = postLink.href;
+      showNotification('Loading full resolution...', 'info');
+
+      try {
+        // Fetch the post page
+        const response = await fetch(postUrl);
+        const html = await response.text();
+
+        // Parse HTML to extract image object
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        let fullResUrl = null;
+
+        // Method 1: Look for video element
+        const videoElement = doc.querySelector('video source, video');
+        if (videoElement) {
+          fullResUrl = videoElement.src || videoElement.querySelector('source')?.src;
+        }
+
+        // Method 2: Look for "Original image" link
+        if (!fullResUrl) {
+          const originalLink = doc.querySelector('a[href*="/images/"]');
+          if (originalLink && originalLink.textContent.includes('Original')) {
+            fullResUrl = originalLink.href;
+          }
+        }
+
+        // Method 3: Look for main image and upgrade to full resolution
+        if (!fullResUrl) {
+          const mainImage = doc.querySelector('#image, .flexi img, img[onclick*="note"]');
+          if (mainImage) {
+            let imgUrl = mainImage.src;
+            // Force highest quality
+            imgUrl = imgUrl.replace('/thumbnails/', '/images/');
+            imgUrl = imgUrl.replace('/samples/', '/images/');
+            imgUrl = imgUrl.replace('thumbnail_', '');
+            imgUrl = imgUrl.replace('sample_', '');
+            const url = new URL(imgUrl);
+            url.searchParams.delete('sample');
+            fullResUrl = url.toString();
+          }
+        }
+
+        if (!fullResUrl) {
+          showNotification('Could not extract full resolution URL', 'error');
+          return;
+        }
+
+        // Replace the thumbnail image src with full resolution
+        img.src = fullResUrl;
+        setImageQuality(img, 'F');
+        showNotification('Full resolution loaded', 'success');
+      } catch (error) {
+        showNotification(`Error: ${error.message}`, 'error');
+      }
+    };
   });
 }
 
+// Track which images we've already processed to avoid reprocessing
+const processedImages = new WeakSet();
+// Track quality level for each image
+const imageQuality = new WeakMap();
+// Track badge update functions for each image
+const badgeUpdaters = new WeakMap();
+
+// Helper to set quality and trigger badge update
+function setImageQuality(img, quality) {
+  imageQuality.set(img, quality);
+  const updater = badgeUpdaters.get(img);
+  if (updater) {
+    updater();
+  }
+}
+
+// Upgrade thumbnails to sample or full quality
+async function upgradeToSampleQuality() {
+  const settings = await browser.storage.local.get({
+    highQualityPreviews: true,
+    alwaysUseFullResolution: false
+  });
+
+  if (settings.alwaysUseFullResolution || settings.highQualityPreviews) {
+    const images = document.querySelectorAll('.thumb img, .thumbnail img, span.thumb img');
+
+    images.forEach(img => {
+      // Skip if already processed
+      if (processedImages.has(img)) return;
+      processedImages.add(img);
+
+      const originalSrc = img.src;
+      if (!originalSrc || !originalSrc.includes('/thumbnails/')) return;
+
+      // Default to thumbnail quality
+      setImageQuality(img, 'T');
+
+      try {
+        // Parse the URL properly
+        const url = new URL(originalSrc);
+
+        const buildUpgradedUrl = (quality) => {
+          let pathname = url.pathname;
+
+          if (quality === 'full') {
+            // Use full resolution /images/
+            pathname = pathname.replace('/thumbnails/', '/images/');
+            // Remove thumbnail_ prefix from filename
+            pathname = pathname.replace('/thumbnail_', '/');
+          } else if (quality === 'sample') {
+            // Use sample quality
+            pathname = pathname.replace('/thumbnails/', '/samples/');
+            // Replace thumbnail_ with sample_ in filename
+            pathname = pathname.replace('/thumbnail_', '/sample_');
+          }
+
+          return url.origin + pathname;
+        };
+
+        if (settings.alwaysUseFullResolution) {
+          // Try full resolution first, fallback to sample, then thumbnail
+          const fullResUrl = buildUpgradedUrl('full');
+          const sampleUrl = buildUpgradedUrl('sample');
+
+          const testFullRes = new Image();
+          testFullRes.onload = () => {
+            img.src = fullResUrl;
+            setImageQuality(img, 'F');
+          };
+          testFullRes.onerror = () => {
+            // Full res failed, try sample
+            console.log('Full resolution failed, trying sample:', fullResUrl);
+            const testSample = new Image();
+            testSample.onload = () => {
+              img.src = sampleUrl;
+              setImageQuality(img, 'S');
+            };
+            testSample.onerror = () => {
+              // Sample failed too, keep original thumbnail
+              console.log('Sample also failed, keeping thumbnail:', sampleUrl);
+              setImageQuality(img, 'T');
+            };
+            testSample.src = sampleUrl;
+          };
+          testFullRes.src = fullResUrl;
+        } else {
+          // Try sample quality
+          const sampleUrl = buildUpgradedUrl('sample');
+
+          const testImg = new Image();
+          testImg.onload = () => {
+            img.src = sampleUrl;
+            setImageQuality(img, 'S');
+          };
+          testImg.onerror = () => {
+            // If upgrade fails, keep original thumbnail
+            console.log('Failed to load sample:', sampleUrl);
+            setImageQuality(img, 'T');
+          };
+          testImg.src = sampleUrl;
+        }
+      } catch (error) {
+        console.error('Error upgrading thumbnail URL:', originalSrc, error);
+      }
+    });
+  }
+}
+
+// Watch for dynamically loaded images
+function watchForNewImages() {
+  // Use MutationObserver for DOM changes
+  const observer = new MutationObserver(() => {
+    upgradeToSampleQuality();
+    addThumbnailDownloadButtons();
+  });
+
+  // Observe the content area for new images
+  const content = document.querySelector('#content, body');
+  if (content) {
+    observer.observe(content, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  // Also periodically check for new images (catch lazy-loaded images)
+  setInterval(() => {
+    upgradeToSampleQuality();
+    addThumbnailDownloadButtons();
+  }, 1000);
+
+  // Trigger on scroll to catch lazy loading
+  let scrollTimeout;
+  window.addEventListener('scroll', () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      upgradeToSampleQuality();
+      addThumbnailDownloadButtons();
+    }, 200);
+  }, { passive: true });
+}
+
 // Initialize when page loads
+removeRightSidebar();
 applyAmoledTheme();
+upgradeToSampleQuality();
 createFloatingButtons();
 addSaveIconsToLinks();
 addThumbnailDownloadButtons();
+watchForNewImages();

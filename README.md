@@ -13,6 +13,9 @@ Enable private browsing: `about:addons` → R34 Tools → Allow in Private Windo
 - **Download media** with `Ctrl+Q` or hover buttons (post pages & thumbnails)
 - **Save pages** with `Ctrl+Shift+S` or 🔖 icons next to tags/artists
 - **AMOLED dark theme** - Pure black backgrounds with green accents (enabled by default)
+- **High-quality previews** - Upgrades thumbnails to sample quality for better image clarity (enabled by default)
+  - Green download button on hover to download full resolution
+  - Blue full-resolution button loads /images/ quality inline
 - **Smart filenames** - `r34_{id}_{hash}_{artists}.ext`
 - **JSON metadata** - Saves as `{timestamp}_r34.json` with URL, artists, post ID
 
@@ -22,6 +25,8 @@ Extension icon → Settings
 - Configure keyboard shortcuts
 - Set download conflict behavior (overwrite/uniquify)
 - Toggle AMOLED theme
+- Toggle high-quality previews (sample quality)
+- Toggle always use full resolution (overrides high-quality, slower but max quality)
 
 ## Build
 
@@ -29,3 +34,9 @@ Extension icon → Settings
 npm run build
 # Creates dist/r34-tools-v{version}.xpi
 ```
+
+## Future Ideas
+
+- troubleshoot why not ever image is showing in force full res (404s)
+- work on UI a bit
+  - hide top bars and move rule34 title and picture so only one vertical bar on left

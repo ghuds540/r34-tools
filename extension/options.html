@@ -52,11 +52,28 @@
         </label>
         <p class="help-text">Converts site backgrounds to pure black and text to white</p>
       </div>
+
+      <div class="setting-item">
+        <label>Preview Quality</label>
+        <div style="margin-left: 20px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="highQualityPreviews">
+            <span>Use sample quality (recommended)</span>
+          </label>
+          <p class="help-text" style="margin-left: 24px;">Upgrades thumbnails to medium-quality samples</p>
+        </div>
+        <div style="margin-left: 20px; margin-top: 12px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="alwaysUseFullResolution">
+            <span>Use full resolution (slower)</span>
+          </label>
+          <p class="help-text" style="margin-left: 24px;">Loads highest quality images directly - may be slow to load. Disables sample quality when enabled.</p>
+        </div>
+      </div>
     </section>
 
     <div class="footer">
-      <button id="saveSettings" class="btn btn-primary">Save Settings</button>
-      <button id="resetSettings" class="btn btn-secondary">Reset</button>
+      <button id="resetSettings" class="btn btn-secondary">Reset to Defaults</button>
       <div id="status" class="status"></div>
     </div>
   </div>
