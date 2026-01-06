@@ -4,7 +4,6 @@ class Rule34Extractor {
   constructor() {
     this.postId = null;
     this.mediaUrl = null;
-    this.tags = [];
     this.artists = [];
   }
 
@@ -100,40 +99,19 @@ class Rule34Extractor {
 
   // Extract tags and artists from page
   extractMetadata() {
-    this.tags = [];
     this.artists = [];
 
-    // Method 1: Get from tag sidebar
+    // Get artist links, filter out control characters
     const tagLinks = document.querySelectorAll('.tag-type-artist a, li[class*="tag-type-artist"] a');
     tagLinks.forEach(link => {
       const artistName = link.textContent.trim().replace(/\s*\d+$/, ''); // Remove count
-      if (artistName && !this.artists.includes(artistName)) {
+      // Filter out control characters and single-character artifacts
+      if (artistName && artistName.length > 1 && !['?', '+', '-'].includes(artistName) && !this.artists.includes(artistName)) {
         this.artists.push(artistName);
       }
     });
 
-    // Get all tags
-    const allTagLinks = document.querySelectorAll('.tag a:first-child, li[class*="tag-type"] a:first-child');
-    allTagLinks.forEach(link => {
-      const tagName = link.textContent.trim().replace(/\s*\d+$/, ''); // Remove count
-      if (tagName && !this.tags.includes(tagName)) {
-        this.tags.push(tagName);
-      }
-    });
-
-    // Method 2: Fallback - parse from tag list in stats
-    if (this.tags.length === 0) {
-      const statsSection = document.querySelector('#stats');
-      if (statsSection) {
-        const tagText = statsSection.textContent;
-        const tagMatches = tagText.match(/Tags:\s*([^\n]+)/);
-        if (tagMatches) {
-          this.tags = tagMatches[1].split(/\s+/).filter(t => t.length > 0);
-        }
-      }
-    }
-
-    return { tags: this.tags, artists: this.artists };
+    return { artists: this.artists };
   }
 
   // Get filename for download
@@ -224,22 +202,12 @@ async function handleDownloadMedia() {
     });
 
     if (response.success) {
-      // Show notification based on conflict action
-      let message = '';
-      if (response.conflictAction === 'overwrite') {
-        message = `Downloaded (overwrites existing): ${filename}`;
-      } else if (response.conflictAction === 'uniquify') {
-        message = `Downloaded: ${filename}`;
-      } else {
-        message = `Downloading: ${filename}`;
-      }
-
       // Get artist names for display
       const artistInfo = extractor.artists.length > 0
         ? `\nArtists: ${extractor.artists.join(', ')}`
         : '';
 
-      showNotification(message + artistInfo, 'success');
+      showNotification(`Downloaded: ${filename}${artistInfo}`, 'success');
     } else {
       showNotification(`Download failed: ${response.error}`, 'error');
     }
@@ -254,33 +222,18 @@ async function handleSavePage() {
   extractor.extractPostId();
   extractor.extractMetadata();
 
-  const timestamp = new Date().toISOString();
-  let content = '\n' + '='.repeat(80) + '\n';
-  content += `URL: ${window.location.href}\n`;
-  content += `Timestamp: ${timestamp}\n`;
-
-  // If we have post ID and metadata, add it
-  if (extractor.postId) {
-    content += `Post ID: ${extractor.postId}\n`;
-  }
-
-  if (extractor.artists.length > 0) {
-    content += `Artists: ${extractor.artists.join(', ')}\n`;
-  }
-
-  if (extractor.tags.length > 0) {
-    content += `Tags: ${extractor.tags.join(', ')}\n`;
-  }
-
-  content += '='.repeat(80) + '\n';
+  const data = {
+    url: window.location.href,
+    timestamp: new Date().toISOString(),
+    postId: extractor.postId || null,
+    artists: extractor.artists
+  };
 
   try {
     const response = await browser.runtime.sendMessage({
-      action: 'appendToFile',
-      content: content
+      action: 'savePageJson',
+      data: data
     });
-
-    console.log('Save response:', response);
 
     if (response && response.success) {
       const info = extractor.postId ? `Post ${extractor.postId}` : 'Page';
@@ -308,9 +261,9 @@ function showNotification(message, type = 'info') {
     textColor = '#00ff66';
     borderColor = '#1a4a2a';
   } else {
-    bgColor = '#0f1f2f';
-    textColor = '#00d4ff';
-    borderColor = '#1a2a4a';
+    bgColor = '#0f2f1a';
+    textColor = '#00ff66';
+    borderColor = '#1a4a2a';
   }
 
   notification.style.cssText = `
@@ -357,9 +310,9 @@ function createFloatingButtons() {
   createSidebarSaveButton();
 }
 
-// Create download button that appears on image hover
+// Create download button that appears on image/video hover
 function createImageDownloadButton() {
-  const imageElement = document.querySelector('#image, img.img, .flexi img');
+  const imageElement = document.querySelector('#image, img.img, .flexi img, video, #gelcomVideoPlayer');
   if (!imageElement) return;
 
   // Wrap image in a positioned container if needed
@@ -393,7 +346,7 @@ function createImageDownloadButton() {
     height: 48px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, #00d4ff 0%, #0080ff 100%);
+    background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%);
     color: #000;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -438,14 +391,14 @@ function createSidebarSaveButton() {
     border: 1px solid #2a2a2a;
     border-radius: 4px;
     background: #1a1a1a;
-    color: #00d4ff;
+    color: #00ff66;
     font-weight: 600;
     font-size: 13px;
     cursor: pointer;
     transition: all 0.2s ease;
   `;
   saveBtn.onmouseover = () => {
-    saveBtn.style.borderColor = '#00d4ff';
+    saveBtn.style.borderColor = '#00ff66';
     saveBtn.style.background = '#2a2a2a';
   };
   saveBtn.onmouseout = () => {
@@ -473,6 +426,339 @@ function createSidebarSaveButton() {
   }
 }
 
+// Apply AMOLED theme if enabled
+async function applyAmoledTheme() {
+  const settings = await browser.storage.local.get({ amoledTheme: false });
+
+  if (settings.amoledTheme) {
+    const style = document.createElement('style');
+    style.id = 'r34-tools-amoled-theme';
+    style.textContent = `
+      /* AMOLED Theme - Pure black backgrounds */
+      body, html {
+        background: #000000 !important;
+        color: #ffffff !important;
+      }
+
+      /* Content areas */
+      #content, .content, .sidebar, #leftmenu, .flexi {
+        background: #000000 !important;
+      }
+
+      /* Top navigation bar */
+      #navlinksContainer, #navlinks, ul.flat-list, .flat-list, nav, nav ul, nav li {
+        background: #000000 !important;
+      }
+
+      /* Headers and navigation */
+      #header, .header, #navbar, .navbar, #menu, .menu, header {
+        background: #000000 !important;
+      }
+
+      /* Navigation lists */
+      ul, ol {
+        background: transparent !important;
+      }
+
+      /* Change dark text to white */
+      div, span, p, td, th, li, a, label, input, textarea, select {
+        color: #ffffff !important;
+      }
+
+      /* Borders and separators */
+      hr, .divider, border {
+        border-color: #333333 !important;
+      }
+
+      /* Tables and lists */
+      table, tr, td, th {
+        background: #000000 !important;
+        border-color: #333333 !important;
+      }
+
+      /* Input elements */
+      input, textarea, select {
+        background: #1a1a1a !important;
+        border-color: #333333 !important;
+      }
+
+      /* Links - keep visible */
+      a {
+        color: #00ff66 !important;
+      }
+
+      a:visited {
+        color: #00cc52 !important;
+      }
+
+      /* Thumbnails and image containers */
+      .thumb, .thumbnail, .image-container {
+        background: #000000 !important;
+      }
+
+      /* Post info boxes */
+      .status-notice, .notice, .info {
+        background: #1a1a1a !important;
+        border-color: #333333 !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+// Add save icons next to tag/artist links
+function addSaveIconsToLinks() {
+  // Find all tag and artist links
+  const tagLinks = document.querySelectorAll('.tag a, li[class*="tag-type"] a, .tag-type-artist a');
+
+  tagLinks.forEach(link => {
+    // Skip if already has save icon
+    if (link.parentElement.querySelector('.r34-save-link-icon')) return;
+
+    const saveIcon = document.createElement('span');
+    saveIcon.className = 'r34-save-link-icon';
+    saveIcon.textContent = '🔖';
+    saveIcon.title = 'Save this page';
+    saveIcon.style.cssText = `
+      cursor: pointer;
+      margin-right: 4px;
+      font-size: 10px;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+      display: inline-block;
+    `;
+
+    saveIcon.onmouseover = () => saveIcon.style.opacity = '1';
+    saveIcon.onmouseout = () => saveIcon.style.opacity = '0.6';
+
+    saveIcon.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const targetUrl = link.href;
+      const data = {
+        url: targetUrl,
+        timestamp: new Date().toISOString(),
+        postId: null,
+        artists: []
+      };
+
+      try {
+        const response = await browser.runtime.sendMessage({
+          action: 'savePageJson',
+          data: data
+        });
+
+        if (response && response.success) {
+          showNotification(`Saved link\n→ ${response.filename}`, 'success');
+        } else {
+          showNotification(`Save failed: ${response?.error || 'Unknown error'}`, 'error');
+        }
+      } catch (error) {
+        showNotification(`Error: ${error.message}`, 'error');
+      }
+    };
+
+    // Insert before the link
+    link.parentNode.insertBefore(saveIcon, link);
+  });
+}
+
+// Add download buttons to thumbnails
+function addThumbnailDownloadButtons() {
+  // Find all thumbnail images
+  const thumbnails = document.querySelectorAll('.thumb img, .thumbnail img, span.thumb img');
+
+  thumbnails.forEach(img => {
+    // Skip if already has download button
+    if (img.parentElement.querySelector('.r34-thumb-download')) return;
+
+    // Find the post link (might be parent or ancestor)
+    let postLink = img.closest('a[href*="page=post"]');
+    if (!postLink) {
+      postLink = img.parentElement.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink && img.parentElement.parentElement) {
+      postLink = img.parentElement.parentElement.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink) return;
+
+    // Wrap image in tight container
+    let wrapper = img.parentElement;
+
+    if (!wrapper.classList.contains('r34-thumb-wrapper')) {
+      const newWrapper = document.createElement('span');
+      newWrapper.className = 'r34-thumb-wrapper';
+      newWrapper.style.cssText = `
+        position: relative;
+        display: inline-block;
+        line-height: 0;
+        vertical-align: top;
+        max-width: 100%;
+      `;
+      img.parentNode.insertBefore(newWrapper, img);
+      newWrapper.appendChild(img);
+      wrapper = newWrapper;
+    }
+
+    // Create small download button
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'r34-thumb-download';
+    downloadBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+      </svg>
+    `;
+    downloadBtn.title = 'Download media';
+    downloadBtn.style.cssText = `
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%);
+      color: #000;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      transition: all 0.2s ease;
+      opacity: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 0;
+    `;
+
+    wrapper.appendChild(downloadBtn);
+
+    // Show on hover
+    wrapper.addEventListener('mouseenter', () => {
+      downloadBtn.style.opacity = '1';
+      downloadBtn.style.pointerEvents = 'auto';
+    });
+    wrapper.addEventListener('mouseleave', () => {
+      downloadBtn.style.opacity = '0';
+      downloadBtn.style.pointerEvents = 'none';
+    });
+
+    downloadBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const postUrl = postLink.href;
+      showNotification('Fetching media...', 'info');
+
+      try {
+        // Fetch the post page
+        const response = await fetch(postUrl);
+        const html = await response.text();
+
+        // Parse HTML to extract image object
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        let mediaUrl = null;
+        let postId = null;
+        let artists = [];
+
+        // Extract post ID from URL
+        const idMatch = postUrl.match(/[?&]id=(\d+)/);
+        if (idMatch) postId = idMatch[1];
+
+        // Extract artists
+        const tagLinks = doc.querySelectorAll('.tag-type-artist a, li[class*="tag-type-artist"] a');
+        tagLinks.forEach(link => {
+          const artistName = link.textContent.trim().replace(/\s*\d+$/, '');
+          if (artistName && artistName.length > 1 && !['?', '+', '-'].includes(artistName) && !artists.includes(artistName)) {
+            artists.push(artistName);
+          }
+        });
+
+        // Method 1: Look for video element
+        const videoElement = doc.querySelector('video source, video');
+        if (videoElement) {
+          mediaUrl = videoElement.src || videoElement.querySelector('source')?.src;
+        }
+
+        // Method 2: Look for "Original image" link
+        if (!mediaUrl) {
+          const originalLink = doc.querySelector('a[href*="/images/"]');
+          if (originalLink && originalLink.textContent.includes('Original')) {
+            mediaUrl = originalLink.href;
+          }
+        }
+
+        // Method 3: Look for main image and upgrade to full resolution
+        if (!mediaUrl) {
+          const mainImage = doc.querySelector('#image, .flexi img, img[onclick*="note"]');
+          if (mainImage) {
+            let imgUrl = mainImage.src;
+            // Force highest quality
+            imgUrl = imgUrl.replace('/thumbnails/', '/images/');
+            imgUrl = imgUrl.replace('/samples/', '/images/');
+            imgUrl = imgUrl.replace('thumbnail_', '');
+            const url = new URL(imgUrl);
+            url.searchParams.delete('sample');
+            mediaUrl = url.toString();
+          }
+        }
+
+        if (!mediaUrl) {
+          console.error('Could not find media URL in:', doc);
+          showNotification('Could not extract media URL', 'error');
+          return;
+        }
+
+        // Build filename with same logic as main download
+        const urlObj = new URL(mediaUrl);
+        const pathname = urlObj.pathname;
+        const baseFilename = pathname.split('/').pop().split('?')[0];
+
+        const lastDotIndex = baseFilename.lastIndexOf('.');
+        const extension = lastDotIndex !== -1 ? baseFilename.substring(lastDotIndex) : '';
+        const nameWithoutExt = lastDotIndex !== -1 ? baseFilename.substring(0, lastDotIndex) : baseFilename;
+
+        let finalName = '';
+        if (postId) {
+          finalName = `r34_${postId}_`;
+        }
+        finalName += nameWithoutExt;
+
+        if (artists && artists.length > 0) {
+          const artistString = artists
+            .map(artist => artist.replace(/\s+/g, '_').replace(/[<>:"/\\|?*]/g, ''))
+            .join('_');
+          finalName += `_${artistString}`;
+        }
+        finalName += extension;
+
+        const filename = finalName;
+
+        // Trigger download
+        const dlResponse = await browser.runtime.sendMessage({
+          action: 'download',
+          url: mediaUrl,
+          filename: filename
+        });
+
+        if (dlResponse.success) {
+          showNotification(`Downloaded: ${filename}`, 'success');
+        } else {
+          showNotification(`Download failed: ${dlResponse.error}`, 'error');
+        }
+      } catch (error) {
+        showNotification(`Error: ${error.message}`, 'error');
+      }
+    };
+  });
+}
+
 // Initialize when page loads
 console.log('Rule34.xxx Tools extension loaded');
+applyAmoledTheme();
 createFloatingButtons();
+addSaveIconsToLinks();
+addThumbnailDownloadButtons();

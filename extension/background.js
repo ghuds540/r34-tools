@@ -22,7 +22,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   if (message.action === 'download') {
     try {
       // Get user's conflict action preference
-      const settings = await browser.storage.local.get({ conflictAction: 'uniquify' });
+      const settings = await browser.storage.local.get({ conflictAction: 'overwrite' });
       const conflictAction = settings.conflictAction;
 
       const downloadId = await browser.downloads.download({
@@ -39,36 +39,26 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     }
   }
 
-  if (message.action === 'appendToFile') {
+  if (message.action === 'savePageJson') {
     try {
-      console.log('Saving file with content length:', message.content?.length);
+      // Create filename with full timestamp
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0];
+      const filename = `${timestamp}_r34.json`;
 
-      // Get settings for file path
-      const settings = await browser.storage.local.get(['tagsFilePath']);
-      const baseFilename = settings.tagsFilePath || 'rule34_saved_pages.txt';
-
-      // Create filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-      const finalFilename = baseFilename.replace('.txt', `_${timestamp}.txt`);
-
-      const blob = new Blob([message.content], { type: 'text/plain' });
+      const blob = new Blob([JSON.stringify(message.data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-
-      console.log('Starting download:', finalFilename);
 
       const downloadId = await browser.downloads.download({
         url: url,
-        filename: finalFilename,
+        filename: filename,
         saveAs: false
       });
 
-      console.log('Download started with ID:', downloadId);
-
-      // Wait for download to complete before revoking URL
+      // Wait for download to complete
       const waitForDownload = new Promise((resolve) => {
         const listener = (delta) => {
           if (delta.id === downloadId && delta.state) {
-            console.log('Download state changed:', delta.state.current);
             if (delta.state.current === 'complete' || delta.state.current === 'interrupted') {
               browser.downloads.onChanged.removeListener(listener);
               resolve(delta.state.current);
@@ -76,8 +66,6 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
           }
         };
         browser.downloads.onChanged.addListener(listener);
-
-        // Fallback timeout after 5 seconds
         setTimeout(() => {
           browser.downloads.onChanged.removeListener(listener);
           resolve('timeout');
@@ -85,12 +73,10 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
       });
 
       const finalState = await waitForDownload;
-      console.log('Download finished with state:', finalState);
-
       URL.revokeObjectURL(url);
 
       if (finalState === 'complete') {
-        return { success: true, downloadId, filename: finalFilename };
+        return { success: true, downloadId, filename };
       } else {
         return { success: false, error: `Download ${finalState}` };
       }

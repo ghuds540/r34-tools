@@ -14,13 +14,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadSettings() {
   const settings = await browser.storage.local.get({
     tagsFilePath: 'rule34_saved_pages.txt',
-    conflictAction: 'uniquify',
+    conflictAction: 'overwrite',
     downloadKey: '',
-    savePageKey: ''
+    savePageKey: '',
+    amoledTheme: false
   });
 
   document.getElementById('tagsFilePath').value = settings.tagsFilePath;
   document.getElementById('conflictAction').value = settings.conflictAction;
+  document.getElementById('amoledTheme').checked = settings.amoledTheme;
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -202,7 +204,8 @@ function clearShortcut(inputId, commandName) {
 async function saveSettings() {
   const settings = {
     tagsFilePath: document.getElementById('tagsFilePath').value || 'rule34_saved_pages.txt',
-    conflictAction: document.getElementById('conflictAction').value
+    conflictAction: document.getElementById('conflictAction').value,
+    amoledTheme: document.getElementById('amoledTheme').checked
   };
 
   await browser.storage.local.set(settings);
@@ -213,9 +216,10 @@ async function saveSettings() {
 async function resetSettings() {
   const defaults = {
     tagsFilePath: 'rule34_saved_pages.txt',
-    conflictAction: 'uniquify',
+    conflictAction: 'overwrite',
     downloadKey: '',
-    savePageKey: ''
+    savePageKey: '',
+    amoledTheme: false
   };
 
   await browser.storage.local.set(defaults);
