@@ -1,6 +1,6 @@
 # R34 Tools
 
-Firefox extension for rule34.xxx - download media, save pages, AMOLED theme.
+Firefox extension for rule34.xxx - download media, save pages, AMOLED dark theme.
 
 ## Install
 
@@ -8,20 +8,20 @@ Firefox extension for rule34.xxx - download media, save pages, AMOLED theme.
 
 Enable private browsing: `about:addons` → R34 Tools → Allow in Private Windows
 
-## Usage
+## Features
 
-**On rule34.xxx:**
-- Click floating download button or press `Ctrl+Q` - downloads highest quality media with artist names
-- Click floating save button or press `Ctrl+Shift+S` - saves URL and metadata
+- **Download media** with `Ctrl+Q` or hover buttons (post pages & thumbnails)
+- **Save pages** with `Ctrl+Shift+S` or 🔖 icons next to tags/artists
+- **AMOLED dark theme** - Pure black backgrounds with green accents (enabled by default)
+- **Smart filenames** - `r34_{id}_{hash}_{artists}.ext`
+- **JSON metadata** - Saves as `{timestamp}_r34.json` with URL, artists, post ID
 
-**Settings:** Extension icon → Settings
-- Configure shortcuts
-- Set download conflict behavior (uniquify/overwrite/prompt)
+## Settings
 
-## Files
-
-- Downloads: `r34_{id}_{hash}_{artists}.ext`
-- Saved pages: `rule34_saved_pages_{timestamp}.txt`
+Extension icon → Settings
+- Configure keyboard shortcuts
+- Set download conflict behavior (overwrite/uniquify)
+- Toggle AMOLED theme
 
 ## Build
 

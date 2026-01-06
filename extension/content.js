@@ -25,7 +25,6 @@ class Rule34Extractor {
       }
     }
 
-    console.log('Extracted post ID:', this.postId);
     return this.postId;
   }
 
@@ -51,8 +50,6 @@ class Rule34Extractor {
 
       // Construct full quality URL
       this.mediaUrl = `${domain}${baseDir}/${image.dir}/${image.img}`;
-
-      console.log('Extracted highest quality image URL:', this.mediaUrl);
       return this.mediaUrl;
     }
 
@@ -61,7 +58,6 @@ class Rule34Extractor {
     if (videoElement) {
       this.mediaUrl = videoElement.src || videoElement.querySelector('source')?.src;
       if (this.mediaUrl) {
-        console.log('Extracted video URL:', this.mediaUrl);
         return this.mediaUrl;
       }
     }
@@ -70,7 +66,6 @@ class Rule34Extractor {
     const originalLink = document.querySelector('a[href*="/images/"]');
     if (originalLink && originalLink.textContent.includes('Original')) {
       this.mediaUrl = originalLink.href;
-      console.log('Extracted from Original link:', this.mediaUrl);
       return this.mediaUrl;
     }
 
@@ -89,11 +84,9 @@ class Rule34Extractor {
       url.searchParams.delete('sample');
 
       this.mediaUrl = url.toString();
-      console.log('Upgraded image URL to full quality:', this.mediaUrl);
       return this.mediaUrl;
     }
 
-    console.warn('Could not extract media URL from page');
     return null;
   }
 
@@ -428,7 +421,7 @@ function createSidebarSaveButton() {
 
 // Apply AMOLED theme if enabled
 async function applyAmoledTheme() {
-  const settings = await browser.storage.local.get({ amoledTheme: false });
+  const settings = await browser.storage.local.get({ amoledTheme: true });
 
   if (settings.amoledTheme) {
     const style = document.createElement('style');
@@ -707,7 +700,6 @@ function addThumbnailDownloadButtons() {
         }
 
         if (!mediaUrl) {
-          console.error('Could not find media URL in:', doc);
           showNotification('Could not extract media URL', 'error');
           return;
         }
@@ -757,7 +749,6 @@ function addThumbnailDownloadButtons() {
 }
 
 // Initialize when page loads
-console.log('Rule34.xxx Tools extension loaded');
 applyAmoledTheme();
 createFloatingButtons();
 addSaveIconsToLinks();

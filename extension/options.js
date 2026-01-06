@@ -13,14 +13,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load settings from storage
 async function loadSettings() {
   const settings = await browser.storage.local.get({
-    tagsFilePath: 'rule34_saved_pages.txt',
     conflictAction: 'overwrite',
     downloadKey: '',
     savePageKey: '',
-    amoledTheme: false
+    amoledTheme: true
   });
 
-  document.getElementById('tagsFilePath').value = settings.tagsFilePath;
   document.getElementById('conflictAction').value = settings.conflictAction;
   document.getElementById('amoledTheme').checked = settings.amoledTheme;
 
@@ -203,7 +201,6 @@ function clearShortcut(inputId, commandName) {
 // Save settings
 async function saveSettings() {
   const settings = {
-    tagsFilePath: document.getElementById('tagsFilePath').value || 'rule34_saved_pages.txt',
     conflictAction: document.getElementById('conflictAction').value,
     amoledTheme: document.getElementById('amoledTheme').checked
   };
@@ -215,11 +212,10 @@ async function saveSettings() {
 // Reset settings to defaults
 async function resetSettings() {
   const defaults = {
-    tagsFilePath: 'rule34_saved_pages.txt',
     conflictAction: 'overwrite',
     downloadKey: '',
     savePageKey: '',
-    amoledTheme: false
+    amoledTheme: true
   };
 
   await browser.storage.local.set(defaults);

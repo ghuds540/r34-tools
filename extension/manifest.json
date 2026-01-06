@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "R34 Tools",
   "version": "1.0.0",
-  "description": "Download media and save tags/artists from rule34.xxx with configurable hotkeys",
+  "description": "Download media, save pages with metadata, AMOLED theme for rule34.xxx",
 
   "incognito": "spanning",
 

@@ -6,7 +6,6 @@ browser.commands.onCommand.addListener(async (command) => {
   const tab = tabs[0];
 
   if (!tab || !tab.url.includes('rule34.xxx')) {
-    console.log('Not on rule34.xxx page');
     return;
   }
 
