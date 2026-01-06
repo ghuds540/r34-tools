@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>R34 Tools - Settings</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>R34 Tools</h1>
+
+    <section class="settings-section">
+      <h2>Shortcuts</h2>
+
+      <div class="setting-item">
+        <label>Download Media</label>
+        <input type="text" id="downloadKey" readonly placeholder="Click Set Shortcut...">
+        <button id="setDownloadKey" class="btn">Set Shortcut</button>
+        <button id="clearDownloadKey" class="btn btn-secondary">Clear</button>
+        <p class="help-text">Current: <span id="currentDownloadKey" class="current-key">Ctrl+Q</span></p>
+      </div>
+
+      <div class="setting-item">
+        <label>Save Page</label>
+        <input type="text" id="savePageKey" readonly placeholder="Click Set Shortcut...">
+        <button id="setPageKey" class="btn">Set Shortcut</button>
+        <button id="clearPageKey" class="btn btn-secondary">Clear</button>
+        <p class="help-text">Current: <span id="currentPageKey" class="current-key">Ctrl+Shift+S</span></p>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Downloads</h2>
+
+      <div class="setting-item">
+        <label>If File Already Exists</label>
+        <select id="conflictAction">
+          <option value="uniquify">Add number to filename (file-1.jpg, file-2.jpg)</option>
+          <option value="overwrite">Overwrite existing file</option>
+          <option value="prompt">Ask me every time</option>
+        </select>
+        <p class="help-text">How to handle duplicate filenames</p>
+      </div>
+
+      <div class="setting-item">
+        <label>Saved Pages Filename</label>
+        <input type="text" id="tagsFilePath" placeholder="rule34_saved_pages.txt">
+        <p class="help-text">Saved to your Downloads folder</p>
+      </div>
+    </section>
+
+    <div class="footer">
+      <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+      <button id="resetSettings" class="btn btn-secondary">Reset</button>
+      <div id="status" class="status"></div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

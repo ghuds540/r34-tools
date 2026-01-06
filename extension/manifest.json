@@ -1,10 +1,59 @@
 {
-    "name": "r34 tools",
-    "description": "A simple extension to enhance rule34.xxx",
-    "version": "1.0",
-    "manifest_version": 3,
-    "action": {
-        "default_popup": "extension_pane.html",
-        "default_icon": "r34_tools.png"
+  "manifest_version": 2,
+  "name": "R34 Tools",
+  "version": "1.4.3",
+  "description": "Download media and save tags/artists from rule34.xxx with configurable hotkeys",
+
+  "incognito": "spanning",
+
+  "permissions": [
+    "storage",
+    "downloads",
+    "activeTab",
+    "*://rule34.xxx/*",
+    "*://*.rule34.xxx/*"
+  ],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://rule34.xxx/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
     }
+  ],
+
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+
+  "browser_action": {
+    "default_title": "Rule34.xxx Tools",
+    "default_popup": "popup.html"
+  },
+
+  "commands": {
+    "download-media": {
+      "suggested_key": {
+        "default": "Ctrl+Q"
+      },
+      "description": "Download highest quality media from current post"
+    },
+    "save-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S"
+      },
+      "description": "Save page for later (URL, tags, artists)"
+    }
+  },
+
+  "icons": {
+    "48": "icon.png",
+    "96": "icon.png"
+  }
 }

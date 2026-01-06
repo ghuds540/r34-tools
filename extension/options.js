@@ -1,0 +1,250 @@
+// Options page logic
+
+let isRecording = false;
+let currentRecordingInput = null;
+
+// Load settings on page load
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSettings();
+  setupEventListeners();
+  await loadCurrentShortcuts();
+});
+
+// Load settings from storage
+async function loadSettings() {
+  const settings = await browser.storage.local.get({
+    tagsFilePath: 'rule34_saved_pages.txt',
+    conflictAction: 'uniquify',
+    downloadKey: '',
+    savePageKey: ''
+  });
+
+  document.getElementById('tagsFilePath').value = settings.tagsFilePath;
+  document.getElementById('conflictAction').value = settings.conflictAction;
+
+  if (settings.downloadKey) {
+    document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
+  }
+  if (settings.savePageKey) {
+    document.getElementById('currentPageKey').textContent = settings.savePageKey;
+  }
+}
+
+// Load current shortcuts from browser commands
+async function loadCurrentShortcuts() {
+  try {
+    const commands = await browser.commands.getAll();
+
+    for (const command of commands) {
+      if (command.name === 'download-media' && command.shortcut) {
+        document.getElementById('currentDownloadKey').textContent = command.shortcut;
+      } else if (command.name === 'save-page' && command.shortcut) {
+        document.getElementById('currentPageKey').textContent = command.shortcut;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load shortcuts:', error);
+  }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+  // Shortcut setting buttons
+  document.getElementById('setDownloadKey').addEventListener('click', () => {
+    startRecording('downloadKey', 'download-media');
+  });
+
+  document.getElementById('setPageKey').addEventListener('click', () => {
+    startRecording('savePageKey', 'save-page');
+  });
+
+  // Clear buttons
+  document.getElementById('clearDownloadKey').addEventListener('click', () => {
+    clearShortcut('downloadKey', 'download-media');
+  });
+
+  document.getElementById('clearPageKey').addEventListener('click', () => {
+    clearShortcut('savePageKey', 'save-page');
+  });
+
+  // Save settings button
+  document.getElementById('saveSettings').addEventListener('click', saveSettings);
+
+  // Reset settings button
+  document.getElementById('resetSettings').addEventListener('click', resetSettings);
+}
+
+// Start recording keyboard shortcut
+function startRecording(inputId, commandName) {
+  const input = document.getElementById(inputId);
+  currentRecordingInput = { inputId, commandName };
+  isRecording = true;
+
+  input.value = 'Press key combination...';
+  input.style.background = '#fff3cd';
+
+  // Listen for keydown (without { once: true } so we can keep listening for modifiers)
+  document.addEventListener('keydown', recordKeyPress);
+  document.addEventListener('keyup', cancelRecordingOnEscape);
+}
+
+// Cancel recording with Escape
+function cancelRecordingOnEscape(event) {
+  if (event.key === 'Escape' && isRecording) {
+    const input = document.getElementById(currentRecordingInput.inputId);
+    input.value = '';
+    input.style.background = '';
+
+    isRecording = false;
+    currentRecordingInput = null;
+
+    document.removeEventListener('keydown', recordKeyPress);
+    document.removeEventListener('keyup', cancelRecordingOnEscape);
+
+    showStatus('Shortcut recording cancelled', 'info');
+  }
+}
+
+// Record key press
+function recordKeyPress(event) {
+  event.preventDefault();
+
+  if (!isRecording) return;
+
+  // Check if this is only a modifier key
+  const modifierKeys = ['Control', 'Alt', 'Shift', 'Meta', 'AltGraph'];
+  if (modifierKeys.includes(event.key)) {
+    // Just a modifier - keep waiting for the actual key
+    const input = document.getElementById(currentRecordingInput.inputId);
+    const mods = [];
+    if (event.ctrlKey) mods.push('Ctrl');
+    if (event.altKey) mods.push('Alt');
+    if (event.shiftKey) mods.push('Shift');
+    if (event.metaKey) mods.push('Meta');
+    input.value = mods.join('+') + '+...';
+    return;
+  }
+
+  // We have a non-modifier key - build the full shortcut
+  const keys = [];
+
+  if (event.ctrlKey) keys.push('Ctrl');
+  if (event.altKey) keys.push('Alt');
+  if (event.shiftKey) keys.push('Shift');
+  if (event.metaKey) keys.push('Meta');
+
+  // Add the main key
+  const key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
+  keys.push(key);
+
+  const shortcut = keys.join('+');
+
+  const input = document.getElementById(currentRecordingInput.inputId);
+  input.value = shortcut;
+  input.style.background = '';
+
+  // Update the current shortcut display
+  const currentSpan = document.getElementById('current' + currentRecordingInput.inputId.charAt(0).toUpperCase() + currentRecordingInput.inputId.slice(1).replace('Key', ''));
+  if (currentSpan) {
+    currentSpan.textContent = shortcut;
+  }
+
+  // Save to storage
+  const setting = {};
+  setting[currentRecordingInput.inputId] = shortcut;
+  browser.storage.local.set(setting);
+
+  // Try to update the browser command (this may not work in all Firefox versions)
+  try {
+    browser.commands.update({
+      name: currentRecordingInput.commandName,
+      shortcut: shortcut
+    }).catch(err => {
+      console.log('Command update not supported, shortcut saved to storage');
+    });
+  } catch (error) {
+    console.log('Commands API not fully supported');
+  }
+
+  showStatus('Shortcut updated successfully!', 'success');
+
+  isRecording = false;
+  currentRecordingInput = null;
+
+  // Remove event listeners
+  document.removeEventListener('keydown', recordKeyPress);
+  document.removeEventListener('keyup', cancelRecordingOnEscape);
+}
+
+// Clear shortcut
+function clearShortcut(inputId, commandName) {
+  const input = document.getElementById(inputId);
+  input.value = '';
+
+  const setting = {};
+  setting[inputId] = '';
+  browser.storage.local.set(setting);
+
+  // Reset to default
+  try {
+    browser.commands.reset(commandName).catch(err => {
+      console.log('Command reset not supported');
+    });
+  } catch (error) {
+    console.log('Commands API not fully supported');
+  }
+
+  showStatus('Shortcut cleared', 'info');
+  loadCurrentShortcuts();
+}
+
+// Save settings
+async function saveSettings() {
+  const settings = {
+    tagsFilePath: document.getElementById('tagsFilePath').value || 'rule34_saved_pages.txt',
+    conflictAction: document.getElementById('conflictAction').value
+  };
+
+  await browser.storage.local.set(settings);
+  showStatus('Settings saved successfully!', 'success');
+}
+
+// Reset settings to defaults
+async function resetSettings() {
+  const defaults = {
+    tagsFilePath: 'rule34_saved_pages.txt',
+    conflictAction: 'uniquify',
+    downloadKey: '',
+    savePageKey: ''
+  };
+
+  await browser.storage.local.set(defaults);
+
+  // Reset command shortcuts
+  try {
+    await browser.commands.reset('download-media');
+    await browser.commands.reset('save-page');
+  } catch (error) {
+    console.log('Commands API not fully supported');
+  }
+
+  await loadSettings();
+  await loadCurrentShortcuts();
+
+  document.getElementById('downloadKey').value = '';
+  document.getElementById('savePageKey').value = '';
+
+  showStatus('Settings reset to defaults', 'success');
+}
+
+// Show status message
+function showStatus(message, type = 'info') {
+  const status = document.getElementById('status');
+  status.textContent = message;
+  status.className = 'status ' + type;
+  status.style.display = 'block';
+
+  setTimeout(() => {
+    status.style.display = 'none';
+  }, 3000);
+}

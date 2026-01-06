@@ -1,0 +1,25 @@
+.claude
+
+# Firefox extension artifacts
+*.xpi
+web-ext-artifacts/
+dist/
+
+# Development
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Node modules (if you add build tools later)
+node_modules/
+
+# OS specific
+Thumbs.db
+desktop.ini
