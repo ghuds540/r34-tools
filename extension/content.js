@@ -592,15 +592,30 @@ function addThumbnailDownloadButtons() {
       newWrapper.className = 'r34-thumb-wrapper';
       newWrapper.style.cssText = `
         position: relative;
-        display: inline-block;
+        display: block;
+        width: 100%;
+        height: 100%;
         line-height: 0;
-        vertical-align: top;
-        max-width: 100%;
+        overflow: hidden;
       `;
       img.parentNode.insertBefore(newWrapper, img);
       newWrapper.appendChild(img);
       wrapper = newWrapper;
     }
+
+    // Constrain image to fit within parent bounds while maintaining natural size
+    img.style.cssText = `
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      display: block;
+      margin: auto;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    `;
 
     // Create small download button
     const downloadBtn = document.createElement('button');
@@ -710,8 +725,32 @@ function addThumbnailDownloadButtons() {
     // Store the updater so it can be called when quality changes
     badgeUpdaters.set(img, updateBadge);
 
+    // Position buttons on the actual image, not just the container
+    const positionButtons = () => {
+      const containerRect = wrapper.getBoundingClientRect();
+      const imgRect = img.getBoundingClientRect();
+
+      // Calculate offset from container to actual image position
+      const offsetTop = imgRect.top - containerRect.top;
+      const offsetLeft = imgRect.left - containerRect.left;
+      const offsetRight = containerRect.right - imgRect.right;
+
+      // Position download button
+      downloadBtn.style.top = (offsetTop + 4) + 'px';
+      downloadBtn.style.left = (offsetLeft + 4) + 'px';
+
+      // Position full res button
+      fullResBtn.style.top = (offsetTop + 4) + 'px';
+      fullResBtn.style.left = (offsetLeft + 36) + 'px';
+
+      // Position quality badge
+      qualityBadge.style.top = (offsetTop + 4) + 'px';
+      qualityBadge.style.right = (offsetRight + 4) + 'px';
+    };
+
     // Show on hover
     wrapper.addEventListener('mouseenter', () => {
+      positionButtons();
       downloadBtn.style.opacity = '1';
       downloadBtn.style.pointerEvents = 'auto';
       fullResBtn.style.opacity = '1';
