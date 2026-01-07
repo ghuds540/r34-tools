@@ -211,38 +211,6 @@
     video.style.height = 'auto';
     video.style.display = 'block';
 
-    // Add click handler to navigate to post page (except when clicking controls)
-    if (postUrl) {
-      video.style.cursor = 'pointer';
-
-      video.addEventListener('click', (e) => {
-        console.log('[R34 Tools] Video clicked, postUrl:', postUrl);
-
-        // Check if clicking on video controls area
-        const rect = video.getBoundingClientRect();
-        const clickY = e.clientY - rect.top;
-        const videoHeight = rect.height;
-
-        // Controls are typically in bottom 40px
-        // Use a smaller threshold for better usability on thumbnails
-        const controlsHeight = 40;
-        const isInControlsArea = clickY > (videoHeight - controlsHeight);
-
-        console.log('[R34 Tools] Click Y:', clickY, 'Height:', videoHeight, 'In controls:', isInControlsArea);
-
-        // Navigate only if not clicking in controls area
-        if (!isInControlsArea) {
-          console.log('[R34 Tools] Navigating to:', postUrl);
-
-          // Prevent video play/pause but allow navigation
-          e.preventDefault();
-
-          // Navigate to post page
-          window.location.href = postUrl;
-        }
-      });
-    }
-
     return video;
   }
 
@@ -324,28 +292,6 @@
     if (videoUrl) {
       const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos, settings.defaultVideoVolume);
       replaceImageWithVideo(img, video, wrapper);
-
-      // Find parent <a> tag and prevent its default click behavior when clicking video
-      const parentLink = video.closest('a');
-      if (parentLink && postUrl) {
-        console.log('[R34 Tools] Found parent link (manual load), adding click handler override');
-
-        parentLink.addEventListener('click', (e) => {
-          // Check if click target is the video or inside the video
-          if (e.target === video || video.contains(e.target)) {
-            console.log('[R34 Tools] Click on video detected, preventing link navigation');
-
-            // Prevent the <a> tag from navigating
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Let the video's own click handler manage navigation
-            // (which will check if clicking controls or not)
-          }
-          // Otherwise, let the <a> tag handle the click normally (clicking margin/wrapper)
-        }, true); // Use capture phase to intercept before the link handles it
-      }
-
       showNotification('Video loaded', 'success');
       return true;
     } else {
@@ -371,27 +317,6 @@
     video.load();
 
     console.log('[R34 Tools] Replaced thumbnail with video player');
-
-    // Find parent <a> tag and prevent its default click behavior when clicking video
-    const parentLink = video.closest('a');
-    if (parentLink && postUrl) {
-      console.log('[R34 Tools] Found parent link, adding click handler override');
-
-      parentLink.addEventListener('click', (e) => {
-        // Check if click target is the video or inside the video
-        if (e.target === video || video.contains(e.target)) {
-          console.log('[R34 Tools] Click on video detected, preventing link navigation');
-
-          // Prevent the <a> tag from navigating
-          e.preventDefault();
-          e.stopPropagation();
-
-          // Let the video's own click handler manage navigation
-          // (which will check if clicking controls or not)
-        }
-        // Otherwise, let the <a> tag handle the click normally (clicking margin/wrapper)
-      }, true); // Use capture phase to intercept before the link handles it
-    }
 
     if (wrapper) {
       reattachButtonsToVideo(wrapper, video);
