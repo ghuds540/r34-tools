@@ -22,7 +22,17 @@
   "content_scripts": [
     {
       "matches": ["*://rule34.xxx/*"],
-      "js": ["content.js"],
+      "js": [
+        "modules/constants.js",
+        "modules/settings-manager.js",
+        "modules/dom-utils.js",
+        "modules/video-loader.js",
+        "modules/image-quality.js",
+        "modules/media-extractor.js",
+        "modules/ui-components.js",
+        "modules/download-handler.js",
+        "content.js"
+      ],
       "run_at": "document_end"
     }
   ],
