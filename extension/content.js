@@ -7,7 +7,7 @@
   // Import all dependencies from modules via global namespace
   const {
     COLORS, SELECTORS, PANEL_STYLES, AMOLED_THEME_RULES, COMPACT_HEADER_STYLES,
-    SVG_ICONS, TIMINGS, CLASS_NAMES
+    SVG_ICONS, TIMINGS, CLASS_NAMES, THUMBNAIL_SCALE_OPTIONS, BUTTON_STYLES
   } = window.R34Tools;
 
   const { settingsManager } = window.R34Tools;
@@ -150,6 +150,74 @@
       COLORS.accent.pink,
       () => forceLoadAllVideos()
     ));
+
+    // Add thumbnail scale controls
+    const scaleContainer = document.createElement('div');
+    scaleContainer.style.cssText = `
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid ${COLORS.accent.grayDark};
+    `;
+
+    const scaleLabel = document.createElement('div');
+    scaleLabel.textContent = 'Thumbnail Size:';
+    scaleLabel.style.cssText = `
+      color: ${COLORS.accent.green};
+      font-size: 11px;
+      margin-bottom: 4px;
+      font-weight: 600;
+    `;
+    scaleContainer.appendChild(scaleLabel);
+
+    const scaleButtonsRow = document.createElement('div');
+    scaleButtonsRow.style.cssText = `
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    `;
+
+    // Create scale buttons
+    THUMBNAIL_SCALE_OPTIONS.forEach(option => {
+      const scaleBtn = document.createElement('button');
+      scaleBtn.className = 'r34-scale-btn';
+      scaleBtn.dataset.scale = option.value;
+      scaleBtn.textContent = option.label;
+      scaleBtn.title = `Set thumbnail scale to ${option.label}`;
+      scaleBtn.style.cssText = `
+        flex: 1;
+        min-width: 40px;
+        padding: 4px 6px;
+        border: 1px solid ${BUTTON_STYLES.panel.borderColor};
+        border-radius: 2px;
+        background: ${BUTTON_STYLES.panel.background};
+        color: ${BUTTON_STYLES.panel.color};
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+      `;
+
+      scaleBtn.onmouseover = () => {
+        if (scaleBtn.style.background !== COLORS.accent.green) {
+          scaleBtn.style.borderColor = BUTTON_STYLES.panel.borderColorHover;
+          scaleBtn.style.background = BUTTON_STYLES.panel.backgroundHover;
+        }
+      };
+
+      scaleBtn.onmouseout = () => {
+        if (scaleBtn.style.background !== COLORS.accent.green) {
+          scaleBtn.style.borderColor = BUTTON_STYLES.panel.borderColor;
+          scaleBtn.style.background = BUTTON_STYLES.panel.background;
+        }
+      };
+
+      scaleBtn.onclick = () => applyThumbnailScale(option.value);
+
+      scaleButtonsRow.appendChild(scaleBtn);
+    });
+
+    scaleContainer.appendChild(scaleButtonsRow);
+    buttonsContainer.appendChild(scaleContainer);
 
     controlsPanel.appendChild(buttonsContainer);
 
@@ -325,6 +393,69 @@
   }
 
   // =============================================================================
+  // THUMBNAIL SCALING
+  // =============================================================================
+
+  /**
+   * Apply thumbnail scale to all thumbnails on the page
+   * @param {number} scale - Scale multiplier (1.0, 1.25, 1.5, 1.75, 2.0)
+   * @param {boolean} silent - If true, don't show notification
+   */
+  async function applyThumbnailScale(scale, silent = false) {
+    // Save to settings (only if not silent, meaning user initiated)
+    if (!silent) {
+      await settingsManager.set({ thumbnailScale: scale });
+    }
+
+    // Apply CSS transform to all thumbnail containers
+    const thumbnailContainers = document.querySelectorAll('.thumb, .thumbnail, span.thumb');
+
+    thumbnailContainers.forEach(container => {
+      container.style.transform = `scale(${scale})`;
+      container.style.transformOrigin = 'top left';
+      container.style.display = 'inline-block';
+
+      // Adjust margin to prevent overlap when scaled
+      if (scale > 1.0) {
+        const baseMargin = 8; // Approximate base margin between thumbnails
+        const extraMargin = (scale - 1.0) * 100; // Extra space needed
+        container.style.marginRight = `${extraMargin}px`;
+        container.style.marginBottom = `${extraMargin}px`;
+      } else {
+        container.style.marginRight = '';
+        container.style.marginBottom = '';
+      }
+    });
+
+    // Update button highlights
+    updateScaleButtonHighlights(scale);
+
+    if (!silent) {
+      showNotification(`Thumbnail scale: ${scale}x`, 'success');
+    }
+  }
+
+  /**
+   * Update scale button highlights to show current scale
+   * @param {number} currentScale - Current scale value
+   */
+  function updateScaleButtonHighlights(currentScale) {
+    const scaleButtons = document.querySelectorAll('.r34-scale-btn');
+    scaleButtons.forEach(btn => {
+      const btnScale = parseFloat(btn.dataset.scale);
+      if (btnScale === currentScale) {
+        btn.style.background = COLORS.accent.green;
+        btn.style.color = '#000000';
+        btn.style.borderColor = COLORS.accent.green;
+      } else {
+        btn.style.background = BUTTON_STYLES.panel.background;
+        btn.style.color = BUTTON_STYLES.panel.color;
+        btn.style.borderColor = BUTTON_STYLES.panel.borderColor;
+      }
+    });
+  }
+
+  // =============================================================================
   // COMPACT HEADER MODE
   // =============================================================================
 
@@ -419,6 +550,38 @@
   }
 
   // =============================================================================
+  // DUPLICATE PAGINATION TO TOP
+  // =============================================================================
+
+  /**
+   * Duplicate bottom pagination bar to top of content
+   */
+  async function duplicatePaginationToTop() {
+    if (!isListPage()) return;
+
+    const settings = await settingsManager.getAll();
+    if (!settings.duplicatePagination) return;
+
+    // Check if already duplicated
+    if (document.getElementById('r34-top-pagination')) return;
+
+    // Find the bottom pagination
+    const bottomPagination = safeQuerySelector(SELECTORS.pagination);
+    if (!bottomPagination) return;
+
+    // Clone it
+    const topPagination = bottomPagination.cloneNode(true);
+    topPagination.id = 'r34-top-pagination';
+    topPagination.style.marginBottom = '16px';
+
+    // Find the content area to insert before
+    const content = safeQuerySelector(SELECTORS.content);
+    if (content && content.firstChild) {
+      content.insertBefore(topPagination, content.firstChild);
+    }
+  }
+
+  // =============================================================================
   // AMOLED DARK THEME
   // =============================================================================
 
@@ -484,6 +647,7 @@
         transition: opacity ${TIMINGS.buttonTransition}ms;
         display: inline-block;
         vertical-align: middle;
+        color: ${COLORS.accent.green};
       `;
 
       saveIcon.onmouseover = () => saveIcon.style.opacity = '1';
@@ -625,12 +789,22 @@
     await applyAmoledTheme();
     await applyCompactHeader();
     removeRightSidebar();
+    await duplicatePaginationToTop();
 
     // Create UI elements
     createFloatingButtons();
     createExtensionControlsPanel();
     createImageDownloadButton();
     addSaveIconsToLinks();
+
+    // Apply saved thumbnail scale
+    const settings = await settingsManager.getAll();
+    if (settings.thumbnailScale && settings.thumbnailScale !== 1.0) {
+      applyThumbnailScale(settings.thumbnailScale, true); // Silent mode on page load
+    } else {
+      // Ensure buttons are highlighted for default scale
+      updateScaleButtonHighlights(settings.thumbnailScale || 1.0);
+    }
 
     // Setup thumbnail features
     addThumbnailDownloadButtons();

@@ -89,6 +89,8 @@
     subnavbar: '#subnavbar',
     header: '#header, header',
     radios: '.tradio, .tlabel',
+    pagination: '.pagination, .paginator',
+    content: '#content, .content',
 
     // Extension-added elements
     thumbWrapper: '.r34-thumb-wrapper',
@@ -207,8 +209,19 @@
     highQualityPreviews: true,
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
-    autoStartEmbedVideos: true
+    autoStartEmbedVideos: true,
+    thumbnailScale: 1.0,
+    duplicatePagination: false
   };
+
+  // Thumbnail scale options
+  const THUMBNAIL_SCALE_OPTIONS = [
+    { value: 1.0, label: '1x' },
+    { value: 1.25, label: '1.25x' },
+    { value: 1.5, label: '1.5x' },
+    { value: 1.75, label: '1.75x' },
+    { value: 2.0, label: '2x' }
+  ];
 
   // Notification positioning
   const NOTIFICATION_CONFIG = {
@@ -303,6 +316,7 @@
   window.R34Tools.QUALITY_BADGES = QUALITY_BADGES;
   window.R34Tools.BUTTON_STYLES = BUTTON_STYLES;
   window.R34Tools.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
+  window.R34Tools.THUMBNAIL_SCALE_OPTIONS = THUMBNAIL_SCALE_OPTIONS;
   window.R34Tools.NOTIFICATION_CONFIG = NOTIFICATION_CONFIG;
   window.R34Tools.PANEL_STYLES = PANEL_STYLES;
   window.R34Tools.AMOLED_THEME_RULES = AMOLED_THEME_RULES;

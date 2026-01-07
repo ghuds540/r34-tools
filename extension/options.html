@@ -62,6 +62,14 @@
       </div>
 
       <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="duplicatePagination">
+          <span>Duplicate pagination to top</span>
+        </label>
+        <p class="help-text">Shows page navigation at both top and bottom of list pages</p>
+      </div>
+
+      <div class="setting-item">
         <label>Preview Quality</label>
         <div style="margin-left: 20px;">
           <label class="checkbox-label">
@@ -92,6 +100,18 @@
           </label>
           <p class="help-text" style="margin-left: 24px;">Videos will autoplay (muted) when loaded into embed players</p>
         </div>
+      </div>
+
+      <div class="setting-item">
+        <label>Default Thumbnail Scale</label>
+        <select id="thumbnailScale">
+          <option value="1.0">1x (Default)</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="1.75">1.75x</option>
+          <option value="2.0">2x</option>
+        </select>
+        <p class="help-text">Default size for thumbnail previews on list pages</p>
       </div>
     </section>
 

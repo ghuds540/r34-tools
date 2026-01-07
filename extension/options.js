@@ -18,19 +18,23 @@ async function loadSettings() {
     savePageKey: '',
     amoledTheme: true,
     compactHeader: true,
+    duplicatePagination: false,
     highQualityPreviews: true,
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
-    autoStartEmbedVideos: true
+    autoStartEmbedVideos: true,
+    thumbnailScale: 1.0
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
   document.getElementById('amoledTheme').checked = settings.amoledTheme;
   document.getElementById('compactHeader').checked = settings.compactHeader;
+  document.getElementById('duplicatePagination').checked = settings.duplicatePagination;
   document.getElementById('highQualityPreviews').checked = settings.highQualityPreviews;
   document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
   document.getElementById('autoLoadVideoEmbeds').checked = settings.autoLoadVideoEmbeds;
   document.getElementById('autoStartEmbedVideos').checked = settings.autoStartEmbedVideos;
+  document.getElementById('thumbnailScale').value = settings.thumbnailScale.toString();
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -84,10 +88,12 @@ function setupEventListeners() {
   document.getElementById('conflictAction').addEventListener('change', autoSaveSettings);
   document.getElementById('amoledTheme').addEventListener('change', autoSaveSettings);
   document.getElementById('compactHeader').addEventListener('change', autoSaveSettings);
+  document.getElementById('duplicatePagination').addEventListener('change', autoSaveSettings);
   document.getElementById('highQualityPreviews').addEventListener('change', autoSaveSettings);
   document.getElementById('alwaysUseFullResolution').addEventListener('change', autoSaveSettings);
   document.getElementById('autoLoadVideoEmbeds').addEventListener('change', autoSaveSettings);
   document.getElementById('autoStartEmbedVideos').addEventListener('change', autoSaveSettings);
+  document.getElementById('thumbnailScale').addEventListener('change', autoSaveSettings);
 
   // Preview quality checkboxes - disable first when second is checked
   const highQualityCheckbox = document.getElementById('highQualityPreviews');
@@ -260,10 +266,12 @@ async function autoSaveSettings() {
     conflictAction: document.getElementById('conflictAction').value,
     amoledTheme: document.getElementById('amoledTheme').checked,
     compactHeader: document.getElementById('compactHeader').checked,
+    duplicatePagination: document.getElementById('duplicatePagination').checked,
     highQualityPreviews: document.getElementById('highQualityPreviews').checked,
     alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked,
     autoLoadVideoEmbeds: document.getElementById('autoLoadVideoEmbeds').checked,
-    autoStartEmbedVideos: document.getElementById('autoStartEmbedVideos').checked
+    autoStartEmbedVideos: document.getElementById('autoStartEmbedVideos').checked,
+    thumbnailScale: parseFloat(document.getElementById('thumbnailScale').value)
   };
 
   await browser.storage.local.set(settings);
@@ -278,10 +286,12 @@ async function resetSettings() {
     savePageKey: '',
     amoledTheme: true,
     compactHeader: true,
+    duplicatePagination: false,
     highQualityPreviews: true,
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
-    autoStartEmbedVideos: true
+    autoStartEmbedVideos: true,
+    thumbnailScale: 1.0
   };
 
   await browser.storage.local.set(defaults);
