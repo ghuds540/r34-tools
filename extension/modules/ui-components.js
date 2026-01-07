@@ -12,6 +12,35 @@
   const activeNotifications = [];
 
   /**
+   * Play success sound cue
+   * Uses Web Audio API to generate a very short, subtle success tone
+   */
+  function playSuccessSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Very short ascending tone for success - minimally invasive
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.06);
+
+      // Very quiet and quick fade
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.08);
+    } catch (error) {
+      // Silently fail if audio context is not available
+      console.debug('[R34 Tools] Audio playback not available:', error);
+    }
+  }
+
+  /**
    * Play error sound cue
    * Uses Web Audio API to generate a short error tone
    */
@@ -24,16 +53,16 @@
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      // Short descending tone for error
+      // Short descending tone for error - made more noticeable (2x volume and slightly longer)
       oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.15);
 
-      // Fade out quickly
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+      // Louder volume (2x from 0.3 to 0.6) and slightly longer duration
+      gainNode.gain.setValueAtTime(0.6, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
 
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.15);
+      oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
       // Silently fail if audio context is not available
       console.debug('[R34 Tools] Audio playback not available:', error);
@@ -46,9 +75,11 @@
    * @param {string} type - Notification type: 'info', 'success', or 'error'
    */
   async function showNotification(message, type = 'info') {
-    // Play error sound for error notifications
+    // Play sound for notifications
     if (type === 'error') {
       playErrorSound();
+    } else if (type === 'success') {
+      playSuccessSound();
     }
     const settings = await settingsManager.getAll();
     const theme = getThemeColors(settings);
@@ -99,6 +130,8 @@
       max-width: ${NOTIFICATION_CONFIG.maxWidth}px;
       backdrop-filter: ${NOTIFICATION_CONFIG.backdropFilter};
       white-space: pre-line;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
       line-height: 1.5;
       transition: opacity ${TIMINGS.notificationFadeOut}ms ease, transform ${TIMINGS.notificationFadeOut}ms ease;
     `;
