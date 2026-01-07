@@ -12,11 +12,44 @@
   const activeNotifications = [];
 
   /**
+   * Play error sound cue
+   * Uses Web Audio API to generate a short error tone
+   */
+  function playErrorSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Short descending tone for error
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+
+      // Fade out quickly
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.15);
+    } catch (error) {
+      // Silently fail if audio context is not available
+      console.debug('[R34 Tools] Audio playback not available:', error);
+    }
+  }
+
+  /**
    * Show notification on page
    * @param {string} message - Notification message
    * @param {string} type - Notification type: 'info', 'success', or 'error'
    */
   async function showNotification(message, type = 'info') {
+    // Play error sound for error notifications
+    if (type === 'error') {
+      playErrorSound();
+    }
     const settings = await settingsManager.getAll();
     const theme = getThemeColors(settings);
     const notification = document.createElement('div');
@@ -436,6 +469,7 @@
   }
 
   // Export all functions to global namespace
+  window.R34Tools.playErrorSound = playErrorSound;
   window.R34Tools.showNotification = showNotification;
   window.R34Tools.repositionNotifications = repositionNotifications;
   window.R34Tools.createStyledButton = createStyledButton;

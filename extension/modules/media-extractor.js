@@ -48,7 +48,21 @@
      * @returns {string|null} Media URL
      */
     extractMediaUrl() {
-      // Method 1: Check for image JavaScript object (most reliable for images)
+      // Method 1: Check for video elements first (including embedded ones)
+      const videoElement = document.querySelector('video');
+      if (videoElement && videoElement.src) {
+        this.mediaUrl = videoElement.src;
+        return this.mediaUrl;
+      }
+
+      // Method 2: Check for video with source tag
+      const videoWithSource = document.querySelector('video source');
+      if (videoWithSource && videoWithSource.src) {
+        this.mediaUrl = videoWithSource.src;
+        return this.mediaUrl;
+      }
+
+      // Method 3: Check for image JavaScript object (most reliable for images)
       if (typeof image !== 'undefined' && image.domain && image.dir !== undefined && image.img) {
         let domain = image.domain;
 
@@ -70,27 +84,39 @@
         return this.mediaUrl;
       }
 
-      // Method 2: Check for video element
-      const videoElement = document.querySelector(SELECTORS.videoElement);
-      if (videoElement) {
-        this.mediaUrl = videoElement.src || videoElement.querySelector(SELECTORS.videoSource)?.src;
-        if (this.mediaUrl) {
-          return this.mediaUrl;
-        }
-      }
-
-      // Method 3: Check for "Original image" link
+      // Method 4: Check for "Original image" link
       const originalLink = document.querySelector(SELECTORS.originalImageLink);
       if (originalLink && originalLink.textContent.includes('Original')) {
         this.mediaUrl = originalLink.href;
         return this.mediaUrl;
       }
 
-      // Method 4: Look for main image and upgrade to full resolution
+      // Method 5: Look for main image and upgrade to full resolution
       const mainImage = document.querySelector(SELECTORS.mainImage);
-      if (mainImage) {
+      if (mainImage && mainImage.src) {
         this.mediaUrl = forceMaxQualityUrl(mainImage.src);
         return this.mediaUrl;
+      }
+
+      return null;
+    }
+
+    /**
+     * Extract media URL with retry mechanism (waits for page to fully load)
+     * @param {number} maxRetries - Maximum number of retry attempts (default 3)
+     * @param {number} delayMs - Delay between retries in milliseconds (default 300)
+     * @returns {Promise<string|null>} Media URL or null
+     */
+    async extractMediaUrlWithRetry(maxRetries = 3, delayMs = 300) {
+      // Try immediate extraction first
+      let url = this.extractMediaUrl();
+      if (url) return url;
+
+      // If image object doesn't exist yet, retry with delays
+      for (let i = 0; i < maxRetries; i++) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        url = this.extractMediaUrl();
+        if (url) return url;
       }
 
       return null;
@@ -104,23 +130,39 @@
     extractMediaFromDocument(doc) {
       let mediaUrl = null;
 
+      console.log('[R34 Tools] Extracting media from document...');
+
       // Method 1: Check for video
       const html = doc.documentElement.outerHTML;
       mediaUrl = extractVideoFromHtml(html, doc);
-      if (mediaUrl) return mediaUrl;
+      if (mediaUrl) {
+        console.log('[R34 Tools] Found video URL via extractVideoFromHtml:', mediaUrl);
+        return mediaUrl;
+      }
 
       // Method 2: Check for "Original image" link
       const originalLink = doc.querySelector(SELECTORS.originalImageLink);
-      if (originalLink && originalLink.textContent.includes('Original')) {
-        return originalLink.href;
+      console.log('[R34 Tools] Original image link element:', originalLink);
+      if (originalLink) {
+        console.log('[R34 Tools] Original link text:', originalLink.textContent);
+        console.log('[R34 Tools] Original link href:', originalLink.href);
+        if (originalLink.textContent.includes('Original')) {
+          console.log('[R34 Tools] Using original image link');
+          return originalLink.href;
+        }
       }
 
       // Method 3: Look for main image and upgrade to full resolution
       const mainImage = doc.querySelector(SELECTORS.mainImage);
-      if (mainImage) {
-        return forceMaxQualityUrl(mainImage.src);
+      console.log('[R34 Tools] Main image element:', mainImage);
+      if (mainImage && mainImage.src) {
+        console.log('[R34 Tools] Main image src:', mainImage.src);
+        const upgradedUrl = forceMaxQualityUrl(mainImage.src);
+        console.log('[R34 Tools] Upgraded to full quality:', upgradedUrl);
+        return upgradedUrl;
       }
 
+      console.error('[R34 Tools] No media found in document');
       return null;
     }
 

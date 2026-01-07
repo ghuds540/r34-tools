@@ -539,17 +539,34 @@
       const originalWidth = parseFloat(container.dataset.originalWidth);
       const originalHeight = parseFloat(container.dataset.originalHeight);
 
-      // Scale the actual width/height instead of using transform
-      // This makes containers take up proper space in layout
+      // Use max-width instead of width to allow wrapping at browser zoom levels
       if (scale !== 1.0) {
-        container.style.width = `${originalWidth * scale}px`;
+        container.style.maxWidth = `${originalWidth * scale}px`;
+        container.style.width = '100%';
         container.style.height = `${originalHeight * scale}px`;
         container.style.display = 'inline-block';
       } else {
         // Reset to original dimensions
+        container.style.maxWidth = '';
         container.style.width = '';
         container.style.height = '';
         container.style.display = '';
+      }
+
+      // Make images and videos inside fill the scaled container
+      const img = container.querySelector('img');
+      const video = container.querySelector('video');
+
+      if (img) {
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+      }
+
+      if (video) {
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
       }
 
       // Remove any transform/margin hacks from previous implementation
@@ -946,13 +963,24 @@
    */
   async function addThumbnailDownloadButtons() {
     const thumbnails = safeQuerySelectorAll(SELECTORS.thumbnails);
+    console.log(`[R34 Tools] Processing ${thumbnails.length} thumbnails for button setup`);
 
     for (const img of thumbnails) {
       // Skip if already processed
       if (img.parentElement.querySelector(`.${CLASS_NAMES.thumbDownload}`)) continue;
 
       const postLink = findPostLink(img);
-      if (!postLink) continue;
+      if (!postLink) {
+        console.warn('[R34 Tools] No post link found for thumbnail:', img);
+        continue;
+      }
+
+      if (!postLink.href) {
+        console.error('[R34 Tools] Post link has no href:', postLink);
+        continue;
+      }
+
+      console.log('[R34 Tools] Setting up buttons for:', postLink.href);
 
       // Setup buttons using ui-components module
       const { wrapper, downloadBtn, fullResBtn, qualityBadge } = await setupThumbnailButtons(img, postLink);
@@ -960,6 +988,8 @@
       // Attach click handlers using download-handler module
       downloadBtn.onclick = (e) => handleThumbnailDownloadClick(e, postLink.href);
       fullResBtn.onclick = (e) => handleThumbnailFullResClick(e, img, postLink.href, wrapper);
+
+      console.log('[R34 Tools] Buttons attached for:', postLink.href);
     }
   }
 

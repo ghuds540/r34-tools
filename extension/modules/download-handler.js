@@ -14,28 +14,46 @@
    * @returns {Promise<boolean>} True if successful
    */
   async function downloadFromThumbnail(postUrl) {
+    console.log('[R34 Tools] Starting download from thumbnail:', postUrl);
     showNotification('Fetching media...', 'info');
 
     try {
+      console.log('[R34 Tools] Fetching post page HTML...');
       const response = await fetch(postUrl);
+
+      if (!response.ok) {
+        console.error('[R34 Tools] Fetch failed:', response.status, response.statusText);
+        showNotification(`Failed to fetch page: ${response.status}`, 'error');
+        return false;
+      }
+
       const html = await response.text();
+      console.log('[R34 Tools] Received HTML, length:', html.length);
 
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
       const postId = extractPostId(postUrl);
+      console.log('[R34 Tools] Post ID:', postId);
+
       const extractor = new Rule34Extractor();
 
       const mediaUrl = extractor.extractMediaFromDocument(doc);
+      console.log('[R34 Tools] Extracted media URL:', mediaUrl);
+
       const artists = extractor.extractArtistsFromDocument(doc);
+      console.log('[R34 Tools] Extracted artists:', artists);
 
       if (!mediaUrl) {
+        console.error('[R34 Tools] No media URL found in document');
         showNotification('Could not extract media URL', 'error');
         return false;
       }
 
       const filename = extractor.buildFilename(mediaUrl, postId, artists);
+      console.log('[R34 Tools] Generated filename:', filename);
 
+      console.log('[R34 Tools] Sending download request to background script...');
       const dlResponse = await browser.runtime.sendMessage({
         action: 'download',
         url: mediaUrl,
@@ -46,13 +64,16 @@
         const artistInfo = artists.length > 0
           ? `\nArtists: ${artists.join(', ')}`
           : '';
+        console.log('[R34 Tools] Download successful');
         showNotification(`Downloaded: ${filename}${artistInfo}`, 'success');
         return true;
       } else {
+        console.error('[R34 Tools] Download failed:', dlResponse.error);
         showNotification(`Download failed: ${dlResponse.error}`, 'error');
         return false;
       }
     } catch (error) {
+      console.error('[R34 Tools] Exception in downloadFromThumbnail:', error);
       showNotification(`Error: ${error.message}`, 'error');
       return false;
     }
@@ -66,10 +87,12 @@
   async function downloadFromCurrentPage() {
     const extractor = new Rule34Extractor();
     extractor.extractPostId();
-    extractor.extractMediaUrl();
+
+    // Use retry mechanism to wait for page to fully load
+    const mediaUrl = await extractor.extractMediaUrlWithRetry();
     extractor.extractMetadata();
 
-    if (!extractor.mediaUrl) {
+    if (!mediaUrl) {
       showNotification('No media found on this page', 'error');
       return false;
     }
@@ -137,6 +160,9 @@
     }
   }
 
+  // Track ongoing downloads to prevent duplicate requests
+  const activeDownloads = new Set();
+
   /**
    * Handle thumbnail download button click
    * @param {Event} e - Click event
@@ -144,9 +170,39 @@
    * @returns {Promise<void>}
    */
   async function handleThumbnailDownloadClick(e, postUrl) {
+    console.log('[R34 Tools] Download button clicked for:', postUrl);
     e.preventDefault();
     e.stopPropagation();
-    await downloadFromThumbnail(postUrl);
+
+    // Validate post URL
+    if (!postUrl || typeof postUrl !== 'string') {
+      console.error('[R34 Tools] Invalid post URL:', postUrl);
+      showNotification('Invalid post URL', 'error');
+      return;
+    }
+
+    // Ensure it's a valid URL
+    try {
+      new URL(postUrl);
+    } catch (error) {
+      console.error('[R34 Tools] Malformed post URL:', postUrl, error);
+      showNotification('Invalid post URL format', 'error');
+      return;
+    }
+
+    // Prevent duplicate downloads for the same URL
+    if (activeDownloads.has(postUrl)) {
+      console.log('[R34 Tools] Download already in progress for this URL, ignoring click');
+      return;
+    }
+
+    activeDownloads.add(postUrl);
+    try {
+      await downloadFromThumbnail(postUrl);
+    } finally {
+      activeDownloads.delete(postUrl);
+      console.log('[R34 Tools] Download completed, removed from active set');
+    }
   }
 
   /**
