@@ -118,22 +118,9 @@
   }
 
   /**
-   * Validate image URL by attempting to load it
-   * @param {string} url - Image URL to validate
-   * @returns {Promise<boolean>} True if URL is valid
-   */
-  async function validateImageUrl(url) {
-    return new Promise((resolve) => {
-      const testImg = new Image();
-      testImg.onload = () => resolve(true);
-      testImg.onerror = () => resolve(false);
-      testImg.src = url;
-    });
-  }
-
-  /**
    * Upgrade image with fallback strategy
    * Tries full-res first, then sample, then keeps thumbnail
+   * Uses optimistic loading with error handlers to avoid CORS console spam
    * @param {HTMLImageElement} img - Image element
    * @param {boolean} preferFullRes - Whether to prefer full resolution
    */
@@ -151,29 +138,45 @@
     setImageQuality(img, 'T');
 
     if (preferFullRes) {
-      // Try full resolution first
+      // Try full resolution with fallback
       const fullResUrl = upgradeImageUrl(originalSrc, 'full');
       const sampleUrl = upgradeImageUrl(originalSrc, 'sample');
 
-      if (await validateImageUrl(fullResUrl)) {
-        img.src = fullResUrl;
-        setImageQuality(img, 'F');
-      } else if (await validateImageUrl(sampleUrl)) {
+      // Optimistically load full-res, fallback to sample on error
+      img.onerror = () => {
+        img.onerror = () => {
+          // Sample failed too, revert to thumbnail
+          img.src = originalSrc;
+          setImageQuality(img, 'T');
+          img.onerror = null;
+        };
+        img.onload = () => {
+          setImageQuality(img, 'S');
+          img.onload = null;
+          img.onerror = null;
+        };
         img.src = sampleUrl;
-        setImageQuality(img, 'S');
-      } else {
-        // Keep thumbnail
-        setImageQuality(img, 'T');
-      }
+      };
+      img.onload = () => {
+        setImageQuality(img, 'F');
+        img.onload = null;
+        img.onerror = null;
+      };
+      img.src = fullResUrl;
     } else {
       // Only try sample quality
       const sampleUrl = upgradeImageUrl(originalSrc, 'sample');
-      if (await validateImageUrl(sampleUrl)) {
-        img.src = sampleUrl;
-        setImageQuality(img, 'S');
-      } else {
+      img.onerror = () => {
+        img.src = originalSrc;
         setImageQuality(img, 'T');
-      }
+        img.onerror = null;
+      };
+      img.onload = () => {
+        setImageQuality(img, 'S');
+        img.onload = null;
+        img.onerror = null;
+      };
+      img.src = sampleUrl;
     }
   }
 
@@ -257,11 +260,26 @@
 
       const fullResUrl = extractFullResUrlFromDocument(doc);
 
-      if (fullResUrl && await validateImageUrl(fullResUrl)) {
-        img.src = fullResUrl;
-        setImageQuality(img, 'F');
-        showNotification('Full resolution loaded', 'success');
-        return true;
+      if (fullResUrl) {
+        // Optimistically load without pre-validation to avoid console spam
+        return new Promise((resolve) => {
+          const originalSrc = img.src;
+          img.onerror = () => {
+            img.src = originalSrc;
+            img.onerror = null;
+            img.onload = null;
+            showNotification('Full resolution URL not available', 'error');
+            resolve(false);
+          };
+          img.onload = () => {
+            setImageQuality(img, 'F');
+            img.onerror = null;
+            img.onload = null;
+            showNotification('Full resolution loaded', 'success');
+            resolve(true);
+          };
+          img.src = fullResUrl;
+        });
       } else {
         showNotification('Full resolution URL not available', 'error');
         return false;
@@ -318,13 +336,25 @@
       // Process as image
       const fullResUrl = extractFullResUrlFromDocument(doc);
       if (fullResUrl) {
-        if (await validateImageUrl(fullResUrl)) {
+        // Optimistically load without pre-validation to avoid console spam
+        await new Promise((resolve) => {
+          const originalSrc = img.src;
+          img.onerror = () => {
+            img.src = originalSrc;
+            img.onerror = null;
+            img.onload = null;
+            results.failed++;
+            resolve();
+          };
+          img.onload = () => {
+            setImageQuality(img, 'F');
+            img.onerror = null;
+            img.onload = null;
+            results.success++;
+            resolve();
+          };
           img.src = fullResUrl;
-          setImageQuality(img, 'F');
-          results.success++;
-        } else {
-          results.failed++;
-        }
+        });
       } else {
         results.failed++;
       }
@@ -339,7 +369,6 @@
   window.R34Tools.forceMaxQualityUrl = forceMaxQualityUrl;
   window.R34Tools.setImageQuality = setImageQuality;
   window.R34Tools.getImageQuality = getImageQuality;
-  window.R34Tools.validateImageUrl = validateImageUrl;
   window.R34Tools.upgradeImageWithFallback = upgradeImageWithFallback;
   window.R34Tools.createBadgeUpdater = createBadgeUpdater;
   window.R34Tools.extractFullResUrlFromDocument = extractFullResUrlFromDocument;

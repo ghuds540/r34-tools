@@ -217,7 +217,7 @@
       border-radius: 50%;
       border: none;
       background: linear-gradient(135deg, ${COLORS.accent.green} 0%, ${COLORS.accent.greenDark} 100%);
-      color: ${COLORS.accent.black};
+      color: #000000;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       transition: all ${TIMINGS.buttonTransition}ms ease;
@@ -340,90 +340,82 @@
 
   /**
    * Apply compact header mode (hide navbar/header)
+   * Restored to simpler pre-refactor version
    */
   async function applyCompactHeader() {
     const settings = await settingsManager.getAll();
     if (!settings.compactHeader) return;
+
+    // Only show on list pages
+    if (!isListPage()) return;
 
     const navbar = safeQuerySelector(SELECTORS.navbar);
     const subnavbar = safeQuerySelector(SELECTORS.subnavbar);
     const header = safeQuerySelector(SELECTORS.header);
     const radios = safeQuerySelectorAll(SELECTORS.radios);
 
-    // Hide elements
-    [navbar, subnavbar, header].forEach(el => {
-      if (el) el.style.display = 'none';
-    });
-
-    radios.forEach(el => {
-      if (el) el.style.display = 'none';
-    });
-
-    // Create toggle panel in sidebar
-    const sidebar = safeQuerySelector(SELECTORS.sidebar);
-    if (!sidebar || document.getElementById('r34-compact-header-toggle')) return;
-
-    const togglePanel = document.createElement('div');
-    togglePanel.id = 'r34-compact-header-toggle';
-    togglePanel.style.cssText = `
-      background: ${COMPACT_HEADER_STYLES.panel.background};
-      border: ${COMPACT_HEADER_STYLES.panel.border};
-      padding: ${COMPACT_HEADER_STYLES.panel.padding};
-      margin: 8px 0;
-      border-radius: ${COMPACT_HEADER_STYLES.panel.borderRadius};
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-    `;
-
-    const logoImg = document.createElement('img');
-    logoImg.src = 'https://rule34.xxx/layout/logo2020.png';
-    logoImg.style.cssText = 'height: 24px; width: auto;';
-
+    // Create arrow button to toggle header visibility
     const arrowBtn = document.createElement('button');
-    arrowBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        ${SVG_ICONS.arrowDown}
-      </svg>
-    `;
+    arrowBtn.id = 'r34-header-arrow';
+    arrowBtn.textContent = '▼';
+    arrowBtn.title = 'Toggle header visibility';
     arrowBtn.style.cssText = `
-      background: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: ${COMPACT_HEADER_STYLES.panel.background};
       border: 1px solid ${COMPACT_HEADER_STYLES.button.borderColorInactive};
-      border-radius: 4px;
+      border-radius: 3px;
       color: ${COMPACT_HEADER_STYLES.panel.color};
+      font-size: 12px;
+      width: 24px;
+      height: 24px;
       cursor: pointer;
-      padding: 4px;
+      transition: all 0.2s ease;
       display: flex;
       align-items: center;
-      margin-left: auto;
+      justify-content: center;
+      padding: 0;
+      z-index: 10000;
     `;
+
+    document.body.appendChild(arrowBtn);
+
+    // Hide header elements by default
+    if (navbar) navbar.style.display = 'none';
+    if (subnavbar) subnavbar.style.display = 'none';
+    radios.forEach(el => el.style.display = 'none');
 
     let headerVisible = false;
-    togglePanel.onclick = () => {
-      headerVisible = !headerVisible;
-      [navbar, subnavbar, header].forEach(el => {
-        if (el) el.style.display = headerVisible ? 'block' : 'none';
-      });
 
-      arrowBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          ${headerVisible ? SVG_ICONS.arrowUp : SVG_ICONS.arrowDown}
-        </svg>
-      `;
+    arrowBtn.onclick = (e) => {
+      e.stopPropagation();
+      headerVisible = !headerVisible;
 
       if (headerVisible) {
-        arrowBtn.style.borderColor = COMPACT_HEADER_STYLES.button.borderColorActive;
-        arrowBtn.style.background = COMPACT_HEADER_STYLES.button.backgroundActive;
+        if (navbar) navbar.style.display = '';
+        if (subnavbar) subnavbar.style.display = '';
+        radios.forEach(el => el.style.display = '');
+        arrowBtn.textContent = '▲';
       } else {
-        arrowBtn.style.borderColor = COMPACT_HEADER_STYLES.button.borderColorInactive;
-        arrowBtn.style.background = COMPACT_HEADER_STYLES.button.backgroundInactive;
+        if (navbar) navbar.style.display = 'none';
+        if (subnavbar) subnavbar.style.display = 'none';
+        radios.forEach(el => el.style.display = 'none');
+        arrowBtn.textContent = '▼';
       }
+
+      arrowBtn.style.transform = headerVisible ? 'rotate(180deg)' : 'rotate(0deg)';
     };
 
-    togglePanel.appendChild(logoImg);
-    togglePanel.appendChild(arrowBtn);
-    sidebar.insertBefore(togglePanel, sidebar.firstChild);
+    arrowBtn.onmouseover = () => {
+      arrowBtn.style.borderColor = COMPACT_HEADER_STYLES.button.borderColorActive;
+      arrowBtn.style.background = COMPACT_HEADER_STYLES.button.backgroundActive;
+    };
+
+    arrowBtn.onmouseout = () => {
+      arrowBtn.style.borderColor = COMPACT_HEADER_STYLES.button.borderColorInactive;
+      arrowBtn.style.background = COMPACT_HEADER_STYLES.button.backgroundInactive;
+    };
   }
 
   // =============================================================================
@@ -449,11 +441,16 @@
       p, div, span, li { ${AMOLED_THEME_RULES.text} }
       input, select, textarea { ${AMOLED_THEME_RULES.inputs} }
       button { ${AMOLED_THEME_RULES.buttons} }
+      button[type="submit"], input[type="submit"] { background: #00ff66 !important; color: #000000 !important; border-color: #00ff66 !important; }
       a { ${AMOLED_THEME_RULES.links} }
       a:hover { ${AMOLED_THEME_RULES.linksHover} }
       .thumb, .thumbnail { ${AMOLED_THEME_RULES.panels} }
       .pagination, .paginator { ${AMOLED_THEME_RULES.cards} }
       table, th, td { ${AMOLED_THEME_RULES.borders} }
+      .awesomplete ul { background: #000000 !important; border: 1px solid #333333 !important; }
+      .awesomplete li { background: #000000 !important; color: #ffffff !important; }
+      .awesomplete li:hover, .awesomplete li[aria-selected="true"] { background: #1a1a1a !important; }
+      .awesomplete mark { background: #00ff66 !important; color: #000000 !important; }
     `;
 
     document.head.appendChild(style);
@@ -470,7 +467,8 @@
     const tagLinks = safeQuerySelectorAll(SELECTORS.allTags);
 
     tagLinks.forEach(link => {
-      if (link.parentElement.querySelector(`.${CLASS_NAMES.saveLinkIcon}`)) return;
+      const parent = link.parentElement;
+      if (parent.querySelector(`.${CLASS_NAMES.saveLinkIcon}`)) return;
 
       const saveIcon = document.createElement('span');
       saveIcon.className = CLASS_NAMES.saveLinkIcon;
@@ -480,7 +478,7 @@
         </svg>
       `;
       saveIcon.style.cssText = `
-        margin-left: 4px;
+        margin-right: 4px;
         cursor: pointer;
         opacity: 0.5;
         transition: opacity ${TIMINGS.buttonTransition}ms;
@@ -497,7 +495,8 @@
         savePageData();
       };
 
-      link.parentElement.appendChild(saveIcon);
+      // Insert at the beginning of the parent (before ? + - links)
+      parent.insertBefore(saveIcon, parent.firstChild);
     });
   }
 

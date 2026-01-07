@@ -165,7 +165,7 @@
       top: 4,
       left: 4,
       gradient: GRADIENTS.greenButton,
-      color: '#000'
+      color: '#00ff66'
     },
     fullRes: {
       width: 28,
@@ -173,7 +173,7 @@
       top: 4,
       left: 36,
       gradient: GRADIENTS.blueButton,
-      color: '#000'
+      color: '#00ff66'
     },
     qualityBadge: {
       width: 20,
@@ -228,12 +228,12 @@
 
   // Panel styles for sidebar controls
   const PANEL_STYLES = {
-    background: '#1a1a1a',
-    border: '1px solid #333',
-    borderBottom: '1px solid #333',
-    padding: '8px',
+    background: 'transparent',
+    border: 'none',
+    borderBottom: 'none',
+    padding: '8px 0',
     margin: '8px 0',
-    borderRadius: '4px',
+    borderRadius: '0',
     gap: '6px'
   };
 
@@ -245,28 +245,29 @@
     navigation: 'background: #000000 !important;',
     text: 'color: #ffffff !important;',
     borders: 'border-color: #333333 !important;',
-    inputs: 'background: #000000 !important; border-color: #333333 !important;',
-    buttons: 'background: #1a1a1a !important; border-color: #333333 !important;',
+    inputs: 'background: #000000 !important; border-color: #333333 !important; color: #ffffff !important;',
+    buttons: 'background: #1a1a1a !important; border-color: #00ff66 !important; color: #00ff66 !important;',
     links: 'color: #00ff66 !important;',
     linksHover: 'color: #00cc52 !important;',
     panels: 'background: #000000 !important;',
-    cards: 'background: #1a1a1a !important; border-color: #333333 !important;'
+    cards: 'background: #000000 !important; border-color: #333333 !important;',
+    autocomplete: 'background: #000000 !important; border-color: #333333 !important; color: #ffffff !important;'
   };
 
   // Compact header styles
   const COMPACT_HEADER_STYLES = {
     panel: {
-      background: '#1a1a1a',
-      border: '1px solid #2a2a2a',
+      background: '#000000',
+      border: '1px solid #00ff66',
       padding: '6px',
       color: '#00ff66',
       borderRadius: '4px'
     },
     button: {
       borderColorActive: '#00ff66',
-      backgroundActive: '#2a2a2a',
-      borderColorInactive: '#2a2a2a',
-      backgroundInactive: '#1a1a1a'
+      backgroundActive: '#1a1a1a',
+      borderColorInactive: '#333333',
+      backgroundInactive: '#000000'
     }
   };
 

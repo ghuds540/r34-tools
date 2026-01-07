@@ -168,7 +168,7 @@
       border-radius: 50%;
       border: none;
       background: ${gradient};
-      color: ${styles.color || '#000'};
+      color: ${styles.color || '#00ff66'};
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
       transition: all ${TIMINGS.buttonTransition}ms ease;
