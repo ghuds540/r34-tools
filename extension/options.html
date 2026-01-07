@@ -40,6 +40,27 @@
         </select>
         <p class="help-text">How to handle duplicate filenames</p>
       </div>
+
+      <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoRetryDownloads">
+          <span>Auto-retry failed downloads</span>
+        </label>
+        <p class="help-text">Automatically retry downloads that fail due to rate limits or network errors</p>
+
+        <div style="margin-left: 30px; margin-top: 10px;">
+          <label>Max retry attempts</label>
+          <select id="maxDownloadRetries">
+            <option value="1">1 attempt</option>
+            <option value="2">2 attempts</option>
+            <option value="3">3 attempts</option>
+            <option value="5">5 attempts</option>
+            <option value="7">7 attempts</option>
+            <option value="10">10 attempts</option>
+          </select>
+          <p class="help-text" style="margin-left: 0;">Number of times to retry before giving up</p>
+        </div>
+      </div>
     </section>
 
     <section class="settings-section">

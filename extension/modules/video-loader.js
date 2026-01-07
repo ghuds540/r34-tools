@@ -244,7 +244,7 @@
    * @param {string} postUrl - Post page URL (optional, for go to post button)
    */
   async function reattachButtonsToVideo(wrapper, video, postUrl = null) {
-    const { createGoToPostButton } = window.R34Tools;
+    const { createGoToPostButton, playClickSound } = window.R34Tools;
 
     const downloadBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbDownload}`);
     const fullResBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbFullRes}`);
@@ -258,6 +258,7 @@
 
       // Add click handler to navigate to post page
       goToPostBtn.addEventListener('click', () => {
+        playClickSound(); // Immediate feedback
         window.location.href = postUrl;
       });
     }

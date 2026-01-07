@@ -27,5 +27,12 @@ small features:
 - force always view original (private browsing makes you reset usually)
 - download whole page (needs 429 retry first)
 
+- enhanced sorting
+  - easy score filtering
+  - arrow flip flop up down for recency
+  - might be configurable in settings
+- saved searches in dropdown filter list
+  - need to wait for sqlite for this 
+
 medium/large features:
 - tiktok

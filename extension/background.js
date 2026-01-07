@@ -5,6 +5,146 @@
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
 const DOWNLOAD_TIMEOUT_MS = 5000;
+const QUEUE_CLEANUP_DELAY = 60000; // Clean up completed/failed downloads after 1 minute
+
+// =============================================================================
+// DOWNLOAD QUEUE MANAGER
+// =============================================================================
+
+// Download queue: downloadId → QueueItem
+const downloadQueue = new Map();
+
+/**
+ * Calculate exponential backoff delay
+ * @param {number} attempts - Current attempt number (starts at 1)
+ * @param {number} initialDelay - Initial retry delay in ms
+ * @returns {number} Delay in milliseconds
+ */
+function calculateBackoffDelay(attempts, initialDelay = 1000) {
+  // Exponential backoff: initialDelay * 2^(attempts-1)
+  // Example: 1s, 2s, 4s, 8s, 16s
+  return initialDelay * Math.pow(2, attempts - 1);
+}
+
+/**
+ * Add download to queue
+ * @param {number} downloadId - Browser download ID
+ * @param {string} url - Media URL
+ * @param {string} filename - Target filename
+ * @param {string} conflictAction - 'overwrite' or 'uniquify'
+ * @param {number} maxAttempts - Max retry attempts from settings
+ * @param {number} tabId - Content script tab ID (for notifications)
+ */
+function addToQueue(downloadId, url, filename, conflictAction, maxAttempts, tabId) {
+  const queueItem = {
+    downloadId,
+    url,
+    filename,
+    conflictAction,
+    attempts: 1,
+    maxAttempts,
+    tabId,
+    state: 'downloading',
+    error: null,
+    retryTimeoutId: null
+  };
+
+  downloadQueue.set(downloadId, queueItem);
+  console.log(`[R34 Tools Queue] Added to queue:`, filename, `(attempt 1/${maxAttempts})`);
+
+  // No initial notification - only notify on retry/success/failure to reduce spam
+}
+
+/**
+ * Remove download from queue with cleanup delay
+ * @param {number} downloadId - Browser download ID
+ */
+function removeFromQueue(downloadId) {
+  const item = downloadQueue.get(downloadId);
+  if (!item) return;
+
+  console.log(`[R34 Tools Queue] Removing from queue:`, item.filename);
+
+  // Clear any pending retry timeout
+  if (item.retryTimeoutId) {
+    clearTimeout(item.retryTimeoutId);
+  }
+
+  // Remove after delay to allow final state processing
+  setTimeout(() => {
+    downloadQueue.delete(downloadId);
+  }, QUEUE_CLEANUP_DELAY);
+}
+
+/**
+ * Retry download with exponential backoff
+ * @param {Object} queueItem - Queue item to retry
+ */
+async function retryDownload(queueItem) {
+  queueItem.attempts++;
+  queueItem.state = 'retrying';
+
+  const settings = await browser.storage.local.get({
+    autoRetryDownloads: true,
+    initialRetryDelay: 1000
+  });
+
+  const delay = calculateBackoffDelay(queueItem.attempts - 1, settings.initialRetryDelay);
+  const delaySeconds = (delay / 1000).toFixed(1);
+
+  console.log(`[R34 Tools Queue] Retrying download in ${delaySeconds}s (attempt ${queueItem.attempts}/${queueItem.maxAttempts}):`, queueItem.filename);
+
+  // Send retry notification to content script
+  if (queueItem.tabId) {
+    browser.tabs.sendMessage(queueItem.tabId, {
+      action: 'downloadNotification',
+      type: 'retrying',
+      filename: queueItem.filename,
+      delay: delaySeconds,
+      attempts: queueItem.attempts,
+      maxAttempts: queueItem.maxAttempts
+    }).catch(err => console.log('[R34 Tools Queue] Tab closed, cannot send notification'));
+  }
+
+  // Schedule retry after backoff delay
+  queueItem.retryTimeoutId = setTimeout(async () => {
+    try {
+      console.log(`[R34 Tools Queue] Executing retry attempt ${queueItem.attempts}:`, queueItem.filename);
+
+      const newDownloadId = await browser.downloads.download({
+        url: queueItem.url,
+        filename: queueItem.filename,
+        conflictAction: queueItem.conflictAction,
+        saveAs: false
+      });
+
+      // Update queue with new download ID
+      downloadQueue.delete(queueItem.downloadId);
+      queueItem.downloadId = newDownloadId;
+      queueItem.state = 'downloading';
+      queueItem.retryTimeoutId = null;
+      downloadQueue.set(newDownloadId, queueItem);
+
+      console.log(`[R34 Tools Queue] Retry started with new download ID ${newDownloadId}`);
+    } catch (error) {
+      console.error(`[R34 Tools Queue] Retry attempt failed:`, error);
+      queueItem.error = error.message;
+      queueItem.state = 'failed';
+
+      // Send final failure notification
+      if (queueItem.tabId) {
+        browser.tabs.sendMessage(queueItem.tabId, {
+          action: 'downloadNotification',
+          type: 'failed',
+          filename: queueItem.filename,
+          attempts: queueItem.attempts
+        }).catch(err => console.log('[R34 Tools Queue] Tab closed, cannot send notification'));
+      }
+
+      removeFromQueue(queueItem.downloadId);
+    }
+  }, delay);
+}
 
 /**
  * Download with retry logic and exponential backoff
@@ -84,26 +224,38 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   // Download media file
   if (message.action === 'download') {
     try {
-      // Get user's conflict action preference
-      const settings = await browser.storage.local.get({ conflictAction: 'overwrite' });
-      const conflictAction = settings.conflictAction;
+      // Get user's preferences
+      const settings = await browser.storage.local.get({
+        conflictAction: 'overwrite',
+        autoRetryDownloads: true,
+        maxDownloadRetries: 5
+      });
 
       console.log('[R34 Tools] Download request:', message.filename);
 
-      // Download with retry logic
-      const result = await downloadWithRetry(
-        message.url,
-        message.filename,
-        conflictAction
-      );
+      // Start download
+      const downloadId = await browser.downloads.download({
+        url: message.url,
+        filename: message.filename,
+        conflictAction: settings.conflictAction,
+        saveAs: false
+      });
 
-      if (result.success) {
-        console.log(`[R34 Tools] Download successful after ${result.attempts} attempt(s)`);
-      } else {
-        console.error(`[R34 Tools] Download failed after ${result.attempts} attempt(s)`);
+      // Add to queue if auto-retry enabled
+      if (settings.autoRetryDownloads) {
+        const tabId = sender.tab ? sender.tab.id : null;
+        addToQueue(
+          downloadId,
+          message.url,
+          message.filename,
+          settings.conflictAction,
+          Math.min(settings.maxDownloadRetries, 10), // Cap at 10
+          tabId
+        );
       }
 
-      return result;
+      console.log(`[R34 Tools] Download started with ID ${downloadId}`);
+      return { success: true, downloadId };
     } catch (error) {
       console.error('[R34 Tools] Download error:', error);
       return { success: false, error: error.message };
@@ -172,6 +324,81 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     } catch (error) {
       console.error('[R34 Tools] File save failed:', error);
       return { success: false, error: error.message };
+    }
+  }
+});
+
+// =============================================================================
+// DOWNLOAD STATE MONITORING
+// =============================================================================
+
+// Monitor download state changes for queue management
+browser.downloads.onChanged.addListener(async (downloadDelta) => {
+  const downloadId = downloadDelta.id;
+  const queueItem = downloadQueue.get(downloadId);
+
+  // Ignore downloads not in our queue
+  if (!queueItem) return;
+
+  // Handle state changes
+  if (downloadDelta.state) {
+    const newState = downloadDelta.state.current;
+
+    // Download completed successfully
+    if (newState === 'complete') {
+      console.log(`[R34 Tools Queue] Download complete:`, queueItem.filename);
+
+      queueItem.state = 'completed';
+
+      // Send success notification to content script
+      if (queueItem.tabId) {
+        browser.tabs.sendMessage(queueItem.tabId, {
+          action: 'downloadNotification',
+          type: 'success',
+          filename: queueItem.filename,
+          attempts: queueItem.attempts
+        }).catch(err => console.log('[R34 Tools Queue] Tab closed, cannot send notification'));
+      }
+
+      // Remove from queue after delay
+      removeFromQueue(downloadId);
+    }
+
+    // Download failed/interrupted
+    else if (newState === 'interrupted') {
+      const errorMsg = downloadDelta.error ? downloadDelta.error.current : 'Unknown error';
+      console.error(`[R34 Tools Queue] Download interrupted:`, queueItem.filename, errorMsg);
+
+      queueItem.error = errorMsg;
+
+      // Check if we should retry
+      const settings = await browser.storage.local.get({
+        autoRetryDownloads: true
+      });
+
+      if (settings.autoRetryDownloads && queueItem.attempts < queueItem.maxAttempts) {
+        // Retry with exponential backoff
+        console.log(`[R34 Tools Queue] Attempting retry (${queueItem.attempts + 1}/${queueItem.maxAttempts})`);
+        await retryDownload(queueItem);
+      } else {
+        // Max retries reached or auto-retry disabled
+        console.error(`[R34 Tools Queue] Download failed after ${queueItem.attempts} attempt(s):`, queueItem.filename);
+
+        queueItem.state = 'failed';
+
+        // Send final failure notification
+        if (queueItem.tabId) {
+          browser.tabs.sendMessage(queueItem.tabId, {
+            action: 'downloadNotification',
+            type: 'failed',
+            filename: queueItem.filename,
+            attempts: queueItem.attempts
+          }).catch(err => console.log('[R34 Tools Queue] Tab closed, cannot send notification'));
+        }
+
+        // Remove from queue
+        removeFromQueue(downloadId);
+      }
     }
   }
 });

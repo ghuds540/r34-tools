@@ -50,10 +50,15 @@ async function loadSettings() {
     defaultVideoVolume: 0.5,
     theaterMode: false,
     centerAlignContent: false,
-    centerAlignListContent: false
+    centerAlignListContent: false,
+    autoRetryDownloads: true,
+    maxDownloadRetries: 5,
+    initialRetryDelay: 1000
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
+  document.getElementById('autoRetryDownloads').checked = settings.autoRetryDownloads;
+  document.getElementById('maxDownloadRetries').value = settings.maxDownloadRetries;
   document.getElementById('amoledTheme').checked = settings.amoledTheme;
   document.getElementById('compactHeader').checked = settings.compactHeader;
   document.getElementById('duplicatePagination').checked = settings.duplicatePagination;
@@ -150,7 +155,9 @@ function setupEventListeners() {
   document.getElementById('theaterMode').addEventListener('change', autoSaveSettings);
   document.getElementById('centerAlignContent').addEventListener('change', autoSaveSettings);
   document.getElementById('centerAlignListContent').addEventListener('change', autoSaveSettings);
-  
+  document.getElementById('autoRetryDownloads').addEventListener('change', autoSaveSettings);
+  document.getElementById('maxDownloadRetries').addEventListener('change', autoSaveSettings);
+
   // Volume slider - update display and save
   document.getElementById('defaultVideoVolume').addEventListener('input', (e) => {
     const value = e.target.value;
@@ -376,7 +383,9 @@ async function autoSaveSettings() {
     defaultVideoVolume: parseInt(document.getElementById('defaultVideoVolume').value) / 100,
     theaterMode: document.getElementById('theaterMode').checked,
     centerAlignContent: document.getElementById('centerAlignContent').checked,
-    centerAlignListContent: document.getElementById('centerAlignListContent').checked
+    centerAlignListContent: document.getElementById('centerAlignListContent').checked,
+    autoRetryDownloads: document.getElementById('autoRetryDownloads').checked,
+    maxDownloadRetries: parseInt(document.getElementById('maxDownloadRetries').value)
   };
 
   await browser.storage.local.set(settings);
@@ -409,7 +418,10 @@ async function resetSettings() {
     defaultVideoVolume: 0.5,
     theaterMode: false,
     centerAlignContent: false,
-    centerAlignListContent: false
+    centerAlignListContent: false,
+    autoRetryDownloads: true,
+    maxDownloadRetries: 5,
+    initialRetryDelay: 1000
   };
 
   await browser.storage.local.set(defaults);

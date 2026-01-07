@@ -70,6 +70,35 @@
   }
 
   /**
+   * Play click sound cue
+   * Uses Web Audio API to generate a very short, subtle click tone for button feedback
+   */
+  function playClickSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Very short, high-pitched click - extremely subtle
+      oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(1000, audioContext.currentTime + 0.02);
+
+      // Very quiet and instantaneous
+      gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.03);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.03);
+    } catch (error) {
+      // Silently fail if audio context is not available
+      console.debug('[R34 Tools] Audio playback not available:', error);
+    }
+  }
+
+  /**
    * Show notification on page
    * @param {string} message - Notification message
    * @param {string} type - Notification type: 'info', 'success', or 'error'
@@ -585,6 +614,7 @@
   // Export all functions to global namespace
   window.R34Tools.playErrorSound = playErrorSound;
   window.R34Tools.playSuccessSound = playSuccessSound;
+  window.R34Tools.playClickSound = playClickSound;
   window.R34Tools.showNotification = showNotification;
   window.R34Tools.repositionNotifications = repositionNotifications;
   window.R34Tools.createStyledButton = createStyledButton;

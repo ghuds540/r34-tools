@@ -5,7 +5,50 @@
   'use strict';
 
   // Get dependencies
-  const { Rule34Extractor, showNotification, extractPostId } = window.R34Tools;
+  const { Rule34Extractor, showNotification, extractPostId, playClickSound } = window.R34Tools;
+
+  /**
+   * Fetch with exponential backoff retry for rate limits
+   * @param {string} url - URL to fetch
+   * @param {number} maxAttempts - Maximum retry attempts (default 5)
+   * @param {number} initialDelay - Initial retry delay in ms (default 1000)
+   * @returns {Promise<Response>} Fetch response
+   */
+  async function fetchWithRetry(url, maxAttempts = 5, initialDelay = 1000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await fetch(url);
+
+        // If successful or non-retryable error, return response
+        if (response.ok || (response.status !== 429 && response.status !== 503)) {
+          return response;
+        }
+
+        // Rate limited or service unavailable - retry with backoff
+        if (attempt < maxAttempts) {
+          const delay = initialDelay * Math.pow(2, attempt - 1);
+          const delaySeconds = (delay / 1000).toFixed(1);
+          console.log(`[R34 Tools] Fetch failed (${response.status}), retrying in ${delaySeconds}s... (attempt ${attempt + 1}/${maxAttempts})`);
+          showNotification(`Rate limited, retrying in ${delaySeconds}s...\n(attempt ${attempt + 1}/${maxAttempts})`, 'info');
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // Max attempts reached
+          return response;
+        }
+      } catch (error) {
+        // Network error - retry if not last attempt
+        if (attempt < maxAttempts) {
+          const delay = initialDelay * Math.pow(2, attempt - 1);
+          const delaySeconds = (delay / 1000).toFixed(1);
+          console.log(`[R34 Tools] Fetch error, retrying in ${delaySeconds}s... (attempt ${attempt + 1}/${maxAttempts}):`, error.message);
+          showNotification(`Network error, retrying in ${delaySeconds}s...\n(attempt ${attempt + 1}/${maxAttempts})`, 'info');
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw error;
+        }
+      }
+    }
+  }
 
   /**
    * Download media from thumbnail
@@ -19,7 +62,7 @@
 
     try {
       console.log('[R34 Tools] Fetching post page HTML...');
-      const response = await fetch(postUrl);
+      const response = await fetchWithRetry(postUrl);
 
       if (!response.ok) {
         console.error('[R34 Tools] Fetch failed:', response.status, response.statusText);
@@ -61,11 +104,8 @@
       });
 
       if (dlResponse.success) {
-        const artistInfo = artists.length > 0
-          ? `\nArtists: ${artists.join(', ')}`
-          : '';
-        console.log('[R34 Tools] Download successful');
-        showNotification(`Downloaded: ${filename}${artistInfo}`, 'success');
+        console.log('[R34 Tools] Download queued successfully');
+        // Notification will be sent by background script queue system
         return true;
       } else {
         console.error('[R34 Tools] Download failed:', dlResponse.error);
@@ -107,10 +147,8 @@
       });
 
       if (response.success) {
-        const artistInfo = extractor.artists.length > 0
-          ? `\nArtists: ${extractor.artists.join(', ')}`
-          : '';
-        showNotification(`Downloaded: ${filename}${artistInfo}`, 'success');
+        console.log('[R34 Tools] Download queued successfully');
+        // Notification will be sent by background script queue system
         return true;
       } else {
         showNotification(`Download failed: ${response.error}`, 'error');
@@ -170,6 +208,7 @@
    * @returns {Promise<void>}
    */
   async function handleThumbnailDownloadClick(e, postUrl) {
+    playClickSound(); // Immediate feedback
     console.log('[R34 Tools] Download button clicked for:', postUrl);
     e.preventDefault();
     e.stopPropagation();
@@ -214,6 +253,7 @@
    * @returns {Promise<void>}
    */
   async function handleThumbnailFullResClick(e, img, postUrl, wrapper) {
+    playClickSound(); // Immediate feedback
     e.preventDefault();
     e.stopPropagation();
 
@@ -230,6 +270,38 @@
       await loadFullResInThumbnail(img, postUrl);
     }
   }
+
+  // Listen for download notifications from background script
+  browser.runtime.onMessage.addListener((message) => {
+    if (message.action === 'downloadNotification') {
+      const { type, filename, delay, attempts, maxAttempts } = message;
+
+      switch (type) {
+        case 'retrying':
+          showNotification(
+            `Download failed, retrying in ${delay}s...\n(attempt ${attempts}/${maxAttempts})`,
+            'info'
+          );
+          break;
+
+        case 'success':
+          showNotification(
+            attempts > 1
+              ? `Downloaded: ${filename}\n(succeeded after ${attempts} attempts)`
+              : `Downloaded: ${filename}`,
+            'success'
+          );
+          break;
+
+        case 'failed':
+          showNotification(
+            `Download failed after ${attempts} attempts:\n${filename}`,
+            'error'
+          );
+          break;
+      }
+    }
+  });
 
   // Export all functions to global namespace
   window.R34Tools.downloadFromThumbnail = downloadFromThumbnail;

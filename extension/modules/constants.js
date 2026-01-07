@@ -233,7 +233,10 @@
     defaultVideoVolume: 0.5,
     theaterMode: false,
     centerAlignContent: false,
-    centerAlignListContent: false
+    centerAlignListContent: false,
+    autoRetryDownloads: true,
+    maxDownloadRetries: 5,
+    initialRetryDelay: 1000
   };
 
   // Thumbnail scale options
@@ -357,9 +360,9 @@
     notificationErrorBg: '#2f0f0f',
     notificationErrorText: '#ff6666',
     notificationErrorBorder: '#4a1a1a',
-    notificationInfoBg: '#0f2f1a',
-    notificationInfoText: '#00ff66',
-    notificationInfoBorder: '#1a4a2a',
+    notificationInfoBg: '#1a4d7a',
+    notificationInfoText: '#e3f2fd',
+    notificationInfoBorder: '#2196f3',
 
     // Tag colors (neon theme)
     tagArtist: '#ff0099',        // Hot pink for artists (more distinct from purple)
