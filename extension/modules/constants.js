@@ -45,7 +45,8 @@
   // CSS Gradients
   const GRADIENTS = {
     greenButton: 'linear-gradient(135deg, #00ff66 0%, #00cc52 100%)',
-    blueButton: 'linear-gradient(135deg, #66b3ff 0%, #3399ff 100%)'
+    blueButton: 'linear-gradient(135deg, #66b3ff 0%, #3399ff 100%)',
+    purpleButton: 'linear-gradient(135deg, #b366ff 0%, #9933ff 100%)'
   };
 
   // Timing constants (in milliseconds)
@@ -175,6 +176,14 @@
       top: 4,
       left: 36,
       gradient: GRADIENTS.blueButton,
+      color: '#00ff66'
+    },
+    goToPost: {
+      width: 28,
+      height: 28,
+      top: 4,
+      left: 68,
+      gradient: GRADIENTS.purpleButton,
       color: '#00ff66'
     },
     qualityBadge: {
@@ -415,6 +424,7 @@
     thumbWrapper: 'r34-thumb-wrapper',
     thumbDownload: 'r34-thumb-download',
     thumbFullRes: 'r34-thumb-fullres',
+    thumbGoToPost: 'r34-thumb-gotopost',
     qualityBadge: 'r34-quality-badge',
     dimensionsBadge: 'r34-dimensions-badge',
     saveLinkIcon: 'r34-save-link-icon',
@@ -428,7 +438,8 @@
     zoomIn: '<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line>',
     bookmark: '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>',
     arrowUp: '<polyline points="18 15 12 9 6 15"></polyline>',
-    arrowDown: '<polyline points="6 9 12 15 18 9"></polyline>'
+    arrowDown: '<polyline points="6 9 12 15 18 9"></polyline>',
+    cursor: '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="M13 13l6 6"></path>'
   };
 
   // Export all constants to global namespace

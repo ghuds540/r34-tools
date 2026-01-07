@@ -26,9 +26,6 @@ small features:
   - add keyboard shortcuts for them
 - force always view original (private browsing makes you reset usually)
 - download whole page (needs 429 retry first)
-- click embedded video thumbnails to navigate to post page (except controls area)
-  - challenge: videos are inside <a> tags, need to intercept parent link clicks
-  - need to prevent <a> default navigation when clicking video but not controls
 
 medium/large features:
 - tiktok

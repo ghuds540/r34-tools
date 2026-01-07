@@ -523,6 +523,20 @@
   }
 
   /**
+   * Create go to post button for video thumbnails
+   * @returns {HTMLButtonElement} Go to post button
+   */
+  async function createGoToPostButton() {
+    return await createCircularIconButton(
+      SVG_ICONS.cursor,
+      CLASS_NAMES.thumbGoToPost,
+      'Go to post page',
+      GRADIENTS.purpleButton,
+      BUTTON_STYLES.goToPost
+    );
+  }
+
+  /**
    * Display upgrade results notification
    * @param {Object} results - Results object with success, failed, skippedVideos counts
    */
@@ -581,6 +595,7 @@
   window.R34Tools.createThumbnailWrapper = createThumbnailWrapper;
   window.R34Tools.createDownloadButton = createDownloadButton;
   window.R34Tools.createFullResButton = createFullResButton;
+  window.R34Tools.createGoToPostButton = createGoToPostButton;
   window.R34Tools.displayUpgradeResults = displayUpgradeResults;
   window.R34Tools.setupThumbnailButtons = setupThumbnailButtons;
 

@@ -65,13 +65,13 @@
    * @param {HTMLElement} fullResBtn - Full resolution button element
    * @param {HTMLElement} qualityBadge - Quality badge element
    */
-  function positionButtonsForMedia(wrapper, mediaElement, downloadBtn, fullResBtn, qualityBadge) {
+  function positionButtonsForMedia(wrapper, mediaElement, downloadBtn, fullResBtn, qualityBadge, goToPostBtn = null) {
     if (!wrapper || !mediaElement) return;
 
     // Find the thumbnail container (span.thumb) to check for scaling
     let thumbContainer = wrapper.closest('.thumb, .thumbnail, span.thumb');
     let scale = 1.0;
-    
+
     // Check if the thumbnail container has a transform scale applied
     if (thumbContainer) {
       const transform = window.getComputedStyle(thumbContainer).transform;
@@ -102,6 +102,11 @@
       fullResBtn.style.left = (offsetLeft + BUTTON_STYLES.fullRes.left) + 'px';
     }
 
+    if (goToPostBtn) {
+      goToPostBtn.style.top = (offsetTop + BUTTON_STYLES.goToPost.top) + 'px';
+      goToPostBtn.style.left = (offsetLeft + BUTTON_STYLES.goToPost.left) + 'px';
+    }
+
     if (qualityBadge) {
       qualityBadge.style.top = (offsetTop + BUTTON_STYLES.qualityBadge.top) + 'px';
       qualityBadge.style.right = (offsetRight + BUTTON_STYLES.qualityBadge.right) + 'px';
@@ -116,9 +121,10 @@
    * @param {HTMLElement} fullResBtn - Full resolution button element
    * @param {HTMLElement} qualityBadge - Quality badge element
    * @param {Function} positionFunc - Function to call for repositioning buttons
+   * @param {HTMLElement} goToPostBtn - Go to post button element (optional, for videos)
    * @returns {Object} Object with showButtons and hideButtons functions
    */
-  function createButtonHoverHandlers(wrapper, downloadBtn, fullResBtn, qualityBadge, positionFunc) {
+  function createButtonHoverHandlers(wrapper, downloadBtn, fullResBtn, qualityBadge, positionFunc, goToPostBtn = null) {
     const showButtons = () => {
       // Reposition buttons if positioning function provided
       if (positionFunc) {
@@ -135,6 +141,12 @@
       if (fullResBtn) {
         fullResBtn.style.opacity = '1';
         fullResBtn.style.pointerEvents = 'auto';
+      }
+
+      // Show go to post button (for videos)
+      if (goToPostBtn) {
+        goToPostBtn.style.opacity = '1';
+        goToPostBtn.style.pointerEvents = 'auto';
       }
 
       // Show quality badge
@@ -154,6 +166,12 @@
       if (fullResBtn) {
         fullResBtn.style.opacity = '0';
         fullResBtn.style.pointerEvents = 'none';
+      }
+
+      // Hide go to post button (for videos)
+      if (goToPostBtn) {
+        goToPostBtn.style.opacity = '0';
+        goToPostBtn.style.pointerEvents = 'none';
       }
 
       // Hide quality badge

@@ -219,9 +219,10 @@
    * @param {HTMLImageElement} img - Original image element
    * @param {HTMLVideoElement} video - Video element to insert
    * @param {HTMLElement} wrapper - Container wrapper
+   * @param {string} postUrl - Post page URL (optional, for go to post button)
    * @returns {HTMLVideoElement} The inserted video element
    */
-  function replaceImageWithVideo(img, video, wrapper) {
+  async function replaceImageWithVideo(img, video, wrapper, postUrl = null) {
     // Replace image with video
     img.parentNode.replaceChild(video, img);
 
@@ -230,21 +231,36 @@
 
     // Reattach buttons if wrapper provided
     if (wrapper) {
-      reattachButtonsToVideo(wrapper, video);
+      await reattachButtonsToVideo(wrapper, video, postUrl);
     }
 
     return video;
   }
 
   /**
-   * Reattach download/fullres buttons to video after replacement
+   * Reattach download/fullres/gotopost buttons to video after replacement
    * @param {HTMLElement} wrapper - Container wrapper
    * @param {HTMLVideoElement} video - Video element
+   * @param {string} postUrl - Post page URL (optional, for go to post button)
    */
-  function reattachButtonsToVideo(wrapper, video) {
+  async function reattachButtonsToVideo(wrapper, video, postUrl = null) {
+    const { createGoToPostButton } = window.R34Tools;
+
     const downloadBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbDownload}`);
     const fullResBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbFullRes}`);
     const qualityBadge = wrapper.querySelector(`.${CLASS_NAMES.qualityBadge}`);
+
+    // Create and add go-to-post button for videos (only if postUrl provided)
+    let goToPostBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbGoToPost}`);
+    if (postUrl && !goToPostBtn) {
+      goToPostBtn = await createGoToPostButton();
+      wrapper.appendChild(goToPostBtn);
+
+      // Add click handler to navigate to post page
+      goToPostBtn.addEventListener('click', () => {
+        window.location.href = postUrl;
+      });
+    }
 
     // Update quality badge to show 'V' for video
     if (qualityBadge) {
@@ -254,14 +270,14 @@
 
     // Create position function for video
     const positionFunc = () => {
-      positionButtonsForMedia(wrapper, video, downloadBtn, fullResBtn, qualityBadge);
+      positionButtonsForMedia(wrapper, video, downloadBtn, fullResBtn, qualityBadge, goToPostBtn);
     };
 
     // Position buttons immediately
     positionFunc();
 
     // Recreate hover handlers for video
-    const handlers = createButtonHoverHandlers(wrapper, downloadBtn, fullResBtn, qualityBadge, positionFunc);
+    const handlers = createButtonHoverHandlers(wrapper, downloadBtn, fullResBtn, qualityBadge, positionFunc, goToPostBtn);
     attachButtonHoverHandlers(wrapper, video, handlers);
 
     // Setup dimensions overlay for video
@@ -291,7 +307,7 @@
 
     if (videoUrl) {
       const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos, settings.defaultVideoVolume);
-      replaceImageWithVideo(img, video, wrapper);
+      await replaceImageWithVideo(img, video, wrapper, postUrl);
       showNotification('Video loaded', 'success');
       return true;
     } else {
@@ -319,7 +335,7 @@
     console.log('[R34 Tools] Replaced thumbnail with video player');
 
     if (wrapper) {
-      reattachButtonsToVideo(wrapper, video);
+      await reattachButtonsToVideo(wrapper, video, postUrl);
     }
   }
 
