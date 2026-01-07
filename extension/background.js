@@ -1,53 +1,135 @@
 // Background script for handling downloads and commands
+// Enhanced with retry logic and improved error handling
 
-// Listen for keyboard commands
-browser.commands.onCommand.addListener(async (command) => {
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  const tab = tabs[0];
+// Constants
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+const DOWNLOAD_TIMEOUT_MS = 5000;
 
-  if (!tab || !tab.url.includes('rule34.xxx')) {
-    return;
+/**
+ * Download with retry logic and exponential backoff
+ * @param {string} url - URL to download
+ * @param {string} filename - Filename for download
+ * @param {string} conflictAction - 'overwrite' or 'uniquify'
+ * @param {number} attempt - Current attempt number (for recursion)
+ * @returns {Promise<Object>} Download result
+ */
+async function downloadWithRetry(url, filename, conflictAction, attempt = 1) {
+  try {
+    const downloadId = await browser.downloads.download({
+      url: url,
+      filename: filename,
+      conflictAction: conflictAction,
+      saveAs: false
+    });
+
+    console.log(`[R34 Tools] Download started (attempt ${attempt}):`, filename);
+    return { success: true, downloadId, conflictAction, attempts: attempt };
+  } catch (error) {
+    console.error(`[R34 Tools] Download attempt ${attempt} failed:`, error.message);
+
+    // Retry if we haven't exceeded max attempts
+    if (attempt < MAX_RETRY_ATTEMPTS) {
+      const delay = RETRY_DELAY_MS * attempt; // Exponential backoff
+      console.log(`[R34 Tools] Retrying in ${delay}ms...`);
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return downloadWithRetry(url, filename, conflictAction, attempt + 1);
+    }
+
+    // All retries failed
+    return {
+      success: false,
+      error: error.message,
+      attempts: attempt
+    };
   }
+}
 
-  if (command === 'download-media') {
-    browser.tabs.sendMessage(tab.id, { action: 'downloadMedia' });
-  } else if (command === 'save-page') {
-    browser.tabs.sendMessage(tab.id, { action: 'savePage' });
+// =============================================================================
+// KEYBOARD COMMAND HANDLERS
+// =============================================================================
+
+// Listen for keyboard commands (Ctrl+Q, Ctrl+Shift+S)
+browser.commands.onCommand.addListener(async (command) => {
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+
+    // Only activate on rule34.xxx pages
+    if (!tab || !tab.url.includes('rule34.xxx')) {
+      console.log('[R34 Tools] Not on rule34.xxx, ignoring command');
+      return;
+    }
+
+    // Forward command to content script
+    if (command === 'download-media') {
+      console.log('[R34 Tools] Download media command triggered');
+      await browser.tabs.sendMessage(tab.id, { action: 'downloadMedia' });
+    } else if (command === 'save-page') {
+      console.log('[R34 Tools] Save page command triggered');
+      await browser.tabs.sendMessage(tab.id, { action: 'savePage' });
+    }
+  } catch (error) {
+    console.error('[R34 Tools] Command handler error:', error);
   }
 });
 
+// =============================================================================
+// MESSAGE HANDLERS
+// =============================================================================
+
 // Listen for messages from content script
 browser.runtime.onMessage.addListener(async (message, sender) => {
+  // Download media file
   if (message.action === 'download') {
     try {
       // Get user's conflict action preference
       const settings = await browser.storage.local.get({ conflictAction: 'overwrite' });
       const conflictAction = settings.conflictAction;
 
-      const downloadId = await browser.downloads.download({
-        url: message.url,
-        filename: message.filename,
-        conflictAction: conflictAction,
-        saveAs: false
-      });
+      console.log('[R34 Tools] Download request:', message.filename);
 
-      return { success: true, downloadId, conflictAction };
+      // Download with retry logic
+      const result = await downloadWithRetry(
+        message.url,
+        message.filename,
+        conflictAction
+      );
+
+      if (result.success) {
+        console.log(`[R34 Tools] Download successful after ${result.attempts} attempt(s)`);
+      } else {
+        console.error(`[R34 Tools] Download failed after ${result.attempts} attempt(s)`);
+      }
+
+      return result;
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error('[R34 Tools] Download error:', error);
       return { success: false, error: error.message };
     }
   }
 
+  // Save page metadata as JSON
   if (message.action === 'savePageJson') {
     try {
       // Create filename with full timestamp
       const now = new Date();
-      const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0];
+      const timestamp = now.toISOString()
+        .replace(/[:.]/g, '-')
+        .replace('T', '_')
+        .split('.')[0];
       const filename = `${timestamp}_r34.json`;
 
-      const blob = new Blob([JSON.stringify(message.data, null, 2)], { type: 'application/json' });
+      console.log('[R34 Tools] Saving page metadata:', filename);
+
+      // Create blob and object URL
+      const blob = new Blob([JSON.stringify(message.data, null, 2)], {
+        type: 'application/json'
+      });
       const url = URL.createObjectURL(blob);
 
+      // Download JSON file
       const downloadId = await browser.downloads.download({
         url: url,
         filename: filename,
@@ -58,39 +140,56 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
       const waitForDownload = new Promise((resolve) => {
         const listener = (delta) => {
           if (delta.id === downloadId && delta.state) {
-            if (delta.state.current === 'complete' || delta.state.current === 'interrupted') {
+            const state = delta.state.current;
+            if (state === 'complete' || state === 'interrupted') {
               browser.downloads.onChanged.removeListener(listener);
-              resolve(delta.state.current);
+              resolve(state);
             }
           }
         };
+
         browser.downloads.onChanged.addListener(listener);
+
+        // Timeout after 5 seconds
         setTimeout(() => {
           browser.downloads.onChanged.removeListener(listener);
           resolve('timeout');
-        }, 5000);
+        }, DOWNLOAD_TIMEOUT_MS);
       });
 
       const finalState = await waitForDownload;
+
+      // Clean up object URL
       URL.revokeObjectURL(url);
 
       if (finalState === 'complete') {
+        console.log('[R34 Tools] Page metadata saved successfully');
         return { success: true, downloadId, filename };
       } else {
+        console.error(`[R34 Tools] Page metadata save ${finalState}`);
         return { success: false, error: `Download ${finalState}` };
       }
     } catch (error) {
-      console.error('File save failed:', error);
+      console.error('[R34 Tools] File save failed:', error);
       return { success: false, error: error.message };
     }
   }
 });
 
-// Show notification on install
+// =============================================================================
+// INSTALLATION HANDLER
+// =============================================================================
+
+// Show options page on first install
 browser.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
+    console.log('[R34 Tools] Extension installed, opening options page');
     browser.tabs.create({
       url: browser.runtime.getURL('options.html')
     });
+  } else if (details.reason === 'update') {
+    console.log('[R34 Tools] Extension updated to version', browser.runtime.getManifest().version);
   }
 });
+
+console.log('[R34 Tools] Background script loaded');

@@ -1,4 +1,5 @@
 // Popup script for quick actions
+// Enhanced with loading states and better error handling
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('downloadBtn').addEventListener('click', downloadMedia);
@@ -15,12 +16,20 @@ async function downloadMedia() {
     return;
   }
 
+  const button = document.getElementById('downloadBtn');
+  const originalText = button.textContent;
+
   try {
+    button.disabled = true;
+    button.textContent = 'Downloading...';
+
     await browser.tabs.sendMessage(tab.id, { action: 'downloadMedia' });
     showStatus('Download started!', 'success');
     setTimeout(() => window.close(), 1500);
   } catch (error) {
     showStatus('Error: ' + error.message, 'error');
+    button.disabled = false;
+    button.textContent = originalText;
   }
 }
 
@@ -33,12 +42,20 @@ async function savePage() {
     return;
   }
 
+  const button = document.getElementById('savePageBtn');
+  const originalText = button.textContent;
+
   try {
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
     await browser.tabs.sendMessage(tab.id, { action: 'savePage' });
     showStatus('Page saved for later!', 'success');
     setTimeout(() => window.close(), 1500);
   } catch (error) {
     showStatus('Error: ' + error.message, 'error');
+    button.disabled = false;
+    button.textContent = originalText;
   }
 }
 
