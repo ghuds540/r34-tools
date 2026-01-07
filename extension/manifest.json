@@ -30,6 +30,7 @@
         "modules/image-quality.js",
         "modules/media-extractor.js",
         "modules/ui-components.js",
+        "modules/dimensions-overlay.js",
         "modules/download-handler.js",
         "content.js"
       ],

@@ -42,7 +42,8 @@ async function loadSettings() {
     autoLoadVideoEmbeds: true,
     autoStartEmbedVideos: true,
     maxAutoplayVideos: 5,
-    thumbnailScale: 1.0
+    thumbnailScale: 1.0,
+    showMediaDimensions: true
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
@@ -59,6 +60,7 @@ async function loadSettings() {
   document.getElementById('autoStartEmbedVideos').checked = settings.autoStartEmbedVideos;
   document.getElementById('maxAutoplayVideos').value = settings.maxAutoplayVideos.toString();
   document.getElementById('thumbnailScale').value = settings.thumbnailScale.toString();
+  document.getElementById('showMediaDimensions').checked = settings.showMediaDimensions;
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -126,6 +128,7 @@ function setupEventListeners() {
   document.getElementById('autoStartEmbedVideos').addEventListener('change', autoSaveSettings);
   document.getElementById('maxAutoplayVideos').addEventListener('change', autoSaveSettings);
   document.getElementById('thumbnailScale').addEventListener('change', autoSaveSettings);
+  document.getElementById('showMediaDimensions').addEventListener('change', autoSaveSettings);
 
   // Preview quality checkboxes - disable first when second is checked
   const highQualityCheckbox = document.getElementById('highQualityPreviews');
@@ -324,7 +327,8 @@ async function autoSaveSettings() {
     autoLoadVideoEmbeds: document.getElementById('autoLoadVideoEmbeds').checked,
     autoStartEmbedVideos: document.getElementById('autoStartEmbedVideos').checked,
     maxAutoplayVideos: parseInt(document.getElementById('maxAutoplayVideos').value),
-    thumbnailScale: parseFloat(document.getElementById('thumbnailScale').value)
+    thumbnailScale: parseFloat(document.getElementById('thumbnailScale').value),
+    showMediaDimensions: document.getElementById('showMediaDimensions').checked
   };
 
   await browser.storage.local.set(settings);
@@ -349,7 +353,8 @@ async function resetSettings() {
     autoLoadVideoEmbeds: true,
     autoStartEmbedVideos: true,
     maxAutoplayVideos: 5,
-    thumbnailScale: 1.0
+    thumbnailScale: 1.0,
+    showMediaDimensions: true
   };
 
   await browser.storage.local.set(defaults);

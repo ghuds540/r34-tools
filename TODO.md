@@ -4,16 +4,14 @@
     - add options to still show/hide these in results
   - bookmarked page deduplication and retrieval to persist between sessions (fill in bookmark solid color)
 - fix some posts not auto forcing higher quality
-- notification text needs to wrap
 - hotkeys for next/last page
 - zooming in page doesnt wrap results
 - thumbnail sizes dont scale contained images up well
 - have to refresh after enlarging thumbnail sizes
 - for posts that have parent/child posts, add a "download collection" button
 - temporary session storage track bookmark to show if saved
-- toggleable text in bottom right of thumbnail that tells you dimensions of true underlying image (useful for side by side dups where you want to download hq one)
+- maybe enable option for thumbnail size label to show the true underlying media dimensions and not just the preview
 
-- sound for success operation
 - ability to turn off/on sounds at fine grain
 
 long game:

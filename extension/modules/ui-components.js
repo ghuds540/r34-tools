@@ -170,6 +170,68 @@
   }
 
   /**
+   * Create dimensions badge that shows on hover
+   * @param {HTMLElement} wrapper - Thumbnail wrapper element
+   * @param {HTMLElement} mediaElement - Image or video element
+   * @returns {HTMLDivElement} Dimensions badge element
+   */
+  function createDimensionsBadge(wrapper, mediaElement) {
+    const badge = document.createElement('div');
+    badge.className = CLASS_NAMES.dimensionsBadge;
+    badge.style.cssText = `
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      padding: 5px 9px;
+      background: rgba(0, 0, 0, 0.9);
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 4px;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+      line-height: 1;
+      letter-spacing: 0.3px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    `;
+    badge.textContent = 'Loading...';
+    
+    wrapper.appendChild(badge);
+    return badge;
+  }
+
+  /**
+   * Update dimensions badge with media info
+   * @param {HTMLDivElement} badge - Badge element
+   * @param {number} width - Media width
+   * @param {number} height - Media height
+   * @param {boolean} hasAudio - Whether video has audio (optional)
+   */
+  function updateDimensionsBadge(badge, width, height, hasAudio = false) {
+    const resolutionLabel = height >= 2160 ? '4K' :
+                           height >= 1440 ? '1440p' :
+                           height >= 1080 ? '1080p' :
+                           height >= 720 ? '720p' :
+                           height >= 480 ? '480p' : `${height}p`;
+    
+    const isVideo = height < 10000; // Videos typically < 8K, images can be much larger
+    const shouldShowResolution = isVideo && height >= 480;
+    
+    let text = shouldShowResolution ? resolutionLabel : `${width}×${height}`;
+    
+    if (hasAudio) {
+      text += ' 🔊';
+    }
+    
+    badge.textContent = text;
+  }
+
+  /**
    * Create styled button for sidebar panels
    * @param {string} emoji - Emoji character
    * @param {string} label - Button label text
@@ -497,17 +559,25 @@
     const handlers = createButtonHoverHandlers(wrapper, downloadBtn, fullResBtn, qualityBadge, positionFunc);
     attachButtonHoverHandlers(wrapper, img, handlers);
 
+    // Setup dimensions overlay (will be initialized when module loads)
+    if (window.R34Tools.setupDimensionsOverlay) {
+      window.R34Tools.setupDimensionsOverlay(wrapper, img);
+    }
+
     // Attach click handlers - will be set by content.js
     return { wrapper, downloadBtn, fullResBtn, qualityBadge };
   }
 
   // Export all functions to global namespace
   window.R34Tools.playErrorSound = playErrorSound;
+  window.R34Tools.playSuccessSound = playSuccessSound;
   window.R34Tools.showNotification = showNotification;
   window.R34Tools.repositionNotifications = repositionNotifications;
   window.R34Tools.createStyledButton = createStyledButton;
   window.R34Tools.createCircularIconButton = createCircularIconButton;
   window.R34Tools.createQualityBadge = createQualityBadge;
+  window.R34Tools.createDimensionsBadge = createDimensionsBadge;
+  window.R34Tools.updateDimensionsBadge = updateDimensionsBadge;
   window.R34Tools.createThumbnailWrapper = createThumbnailWrapper;
   window.R34Tools.createDownloadButton = createDownloadButton;
   window.R34Tools.createFullResButton = createFullResButton;

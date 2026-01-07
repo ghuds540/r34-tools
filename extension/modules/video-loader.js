@@ -283,6 +283,11 @@
     const handlers = createButtonHoverHandlers(wrapper, downloadBtn, fullResBtn, qualityBadge, positionFunc);
     attachButtonHoverHandlers(wrapper, video, handlers);
 
+    // Setup dimensions overlay for video
+    if (window.R34Tools.setupVideoDimensionsOverlay) {
+      window.R34Tools.setupVideoDimensionsOverlay(wrapper, video);
+    }
+
     // Reposition on video load
     video.addEventListener('loadedmetadata', positionFunc);
   }

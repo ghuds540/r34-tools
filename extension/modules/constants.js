@@ -216,7 +216,8 @@
     hideTagWiki: false,
     hideTagAdd: false,
     hideTagRemove: false,
-    hideTagBookmark: false
+    hideTagBookmark: false,
+    showMediaDimensions: true
   };
 
   // Thumbnail scale options
@@ -408,6 +409,7 @@
     thumbDownload: 'r34-thumb-download',
     thumbFullRes: 'r34-thumb-fullres',
     qualityBadge: 'r34-quality-badge',
+    dimensionsBadge: 'r34-dimensions-badge',
     saveLinkIcon: 'r34-save-link-icon',
     videoThumb: 'webm-thumb',
     videoThumbAlt: 'webm'
