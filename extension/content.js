@@ -525,55 +525,61 @@
       await settingsManager.set({ thumbnailScale: scale });
     }
 
-    // Apply scaling by resizing containers directly (not using transform)
+    // Apply scaling using CSS transform to maintain layout and prevent horizontal scroll
     const thumbnailContainers = document.querySelectorAll('.thumb, .thumbnail, span.thumb');
 
     thumbnailContainers.forEach(container => {
-      // Store original dimensions on first scale operation
-      if (!container.dataset.originalWidth) {
-        const computedStyle = window.getComputedStyle(container);
-        container.dataset.originalWidth = parseFloat(computedStyle.width) || 150;
-        container.dataset.originalHeight = parseFloat(computedStyle.height) || 150;
-      }
-
-      const originalWidth = parseFloat(container.dataset.originalWidth);
-      const originalHeight = parseFloat(container.dataset.originalHeight);
-
-      // Use max-width instead of width to allow wrapping at browser zoom levels
       if (scale !== 1.0) {
-        container.style.maxWidth = `${originalWidth * scale}px`;
-        container.style.width = '100%';
-        container.style.height = `${originalHeight * scale}px`;
+        // Get container dimensions if not already stored
+        if (!container.dataset.originalWidth) {
+          const computedStyle = window.getComputedStyle(container);
+          container.dataset.originalWidth = parseFloat(computedStyle.width) || 150;
+        }
+        
+        const originalWidth = parseFloat(container.dataset.originalWidth);
+        
+        // Use CSS transform to scale - maintains layout flow better than resizing
+        container.style.transform = `scale(${scale})`;
+        container.style.transformOrigin = 'top left';
+        
+        // Calculate margin needed to compensate for transform not affecting layout
+        // We need to add spacing equal to (scale - 1) * originalWidth
+        const extraSpace = (scale - 1) * originalWidth;
+        
+        container.style.marginRight = `${extraSpace}px`;
+        container.style.marginBottom = `${extraSpace}px`;
+        
+        // Ensure inline-block display for proper wrapping
         container.style.display = 'inline-block';
+        container.style.verticalAlign = 'top';
       } else {
-        // Reset to original dimensions
-        container.style.maxWidth = '';
-        container.style.width = '';
-        container.style.height = '';
+        // Reset to original state
+        container.style.transform = '';
+        container.style.transformOrigin = '';
+        container.style.marginRight = '';
+        container.style.marginBottom = '';
         container.style.display = '';
+        container.style.verticalAlign = '';
       }
 
-      // Make images and videos inside fill the scaled container
+      // Scale images and videos to fill container without cropping
       const img = container.querySelector('img');
       const video = container.querySelector('video');
 
       if (img) {
+        // Use contain to scale up small images while preserving aspect ratio
         img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'cover';
+        img.style.height = 'auto';
+        img.style.objectFit = 'contain';
+        img.style.display = 'block';
       }
 
       if (video) {
         video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.objectFit = 'cover';
+        video.style.height = 'auto';
+        video.style.objectFit = 'contain';
+        video.style.display = 'block';
       }
-
-      // Remove any transform/margin hacks from previous implementation
-      container.style.transform = '';
-      container.style.transformOrigin = '';
-      container.style.marginRight = '';
-      container.style.marginBottom = '';
     });
 
     // Update button highlights

@@ -76,13 +76,29 @@
     
     if (!qualityBadge) return;
     
+    // Find the thumbnail container (span.thumb) to check for scaling
+    let thumbContainer = wrapper.closest('.thumb, .thumbnail, span.thumb');
+    let scale = 1.0;
+    
+    // Check if the thumbnail container has a transform scale applied
+    if (thumbContainer) {
+      const transform = window.getComputedStyle(thumbContainer).transform;
+      if (transform && transform !== 'none') {
+        // Extract scale from matrix (matrix(scaleX, 0, 0, scaleY, 0, 0))
+        const matrixMatch = transform.match(/matrix\(([^,]+),/);
+        if (matrixMatch) {
+          scale = parseFloat(matrixMatch[1]) || 1.0;
+        }
+      }
+    }
+    
     // Get actual positions relative to viewport
     const wrapperRect = wrapper.getBoundingClientRect();
     const mediaRect = mediaElement.getBoundingClientRect();
     
-    // Calculate media position within wrapper
-    const mediaTopOffset = mediaRect.top - wrapperRect.top;
-    const mediaRightOffset = wrapperRect.right - mediaRect.right;
+    // Calculate media position within wrapper and compensate for scale
+    const mediaTopOffset = (mediaRect.top - wrapperRect.top) / scale;
+    const mediaRightOffset = (wrapperRect.right - mediaRect.right) / scale;
     
     // Get dimensions badge width (needs to be visible to measure)
     const wasVisible = badge.style.opacity !== '0';
@@ -107,7 +123,7 @@
     // Check if dimensions badge would collide with buttons (left side)
     // Buttons are at top-left (downloadBtn at 4px, fullResBtn at 36px)
     const buttonRightEdge = 36 + 28 + 4; // fullResBtn left + width + margin
-    const mediaWidth = mediaRect.width;
+    const mediaWidth = mediaRect.width / scale; // Divide by scale to get unscaled width
     const hasSpaceOnLeft = (mediaWidth - qualityBadgeWidth - badgeWidth - 14) >= buttonRightEdge;
     
     if (hasSpaceOnLeft) {

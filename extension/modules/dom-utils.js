@@ -68,12 +68,29 @@
   function positionButtonsForMedia(wrapper, mediaElement, downloadBtn, fullResBtn, qualityBadge) {
     if (!wrapper || !mediaElement) return;
 
+    // Find the thumbnail container (span.thumb) to check for scaling
+    let thumbContainer = wrapper.closest('.thumb, .thumbnail, span.thumb');
+    let scale = 1.0;
+    
+    // Check if the thumbnail container has a transform scale applied
+    if (thumbContainer) {
+      const transform = window.getComputedStyle(thumbContainer).transform;
+      if (transform && transform !== 'none') {
+        // Extract scale from matrix (matrix(scaleX, 0, 0, scaleY, 0, 0))
+        const matrixMatch = transform.match(/matrix\(([^,]+),/);
+        if (matrixMatch) {
+          scale = parseFloat(matrixMatch[1]) || 1.0;
+        }
+      }
+    }
+
     const containerRect = wrapper.getBoundingClientRect();
     const mediaRect = mediaElement.getBoundingClientRect();
 
-    const offsetTop = mediaRect.top - containerRect.top;
-    const offsetLeft = mediaRect.left - containerRect.left;
-    const offsetRight = containerRect.right - mediaRect.right;
+    // Calculate offsets and divide by scale to compensate for transform
+    const offsetTop = (mediaRect.top - containerRect.top) / scale;
+    const offsetLeft = (mediaRect.left - containerRect.left) / scale;
+    const offsetRight = (containerRect.right - mediaRect.right) / scale;
 
     if (downloadBtn) {
       downloadBtn.style.top = (offsetTop + BUTTON_STYLES.download.top) + 'px';
