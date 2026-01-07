@@ -260,8 +260,8 @@
     borders: 'border-color: #333333 !important;',
     inputs: 'background: #000000 !important; border-color: #333333 !important; color: #ffffff !important;',
     buttons: 'background: #1a1a1a !important; border-color: #00ff66 !important; color: #00ff66 !important;',
-    links: 'color: #00ff66 !important;',
-    linksHover: 'color: #00cc52 !important;',
+    links: 'color: #33ff88 !important; text-decoration: underline !important;',
+    linksHover: 'color: #00ff66 !important; text-decoration: underline !important;',
     panels: 'background: #000000 !important;',
     cards: 'background: #000000 !important; border-color: #333333 !important;',
     autocomplete: 'background: #000000 !important; border-color: #333333 !important; color: #ffffff !important;'

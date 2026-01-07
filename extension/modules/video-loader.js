@@ -174,20 +174,50 @@
     video.style.height = 'auto';
     video.style.display = 'block';
 
-    // Add click handler to navigate to post page (except when clicking controls)
+    // Add click handler to navigate to post page (except when clicking controls or play/pause)
     if (postUrl) {
       video.style.cursor = 'pointer';
-      video.addEventListener('click', (e) => {
-        // Don't navigate if clicking on video controls
-        const rect = video.getBoundingClientRect();
-        const clickY = e.clientY - rect.top;
-        const videoHeight = rect.height;
-        const controlsHeight = 40; // Approximate height of video controls
 
-        // If click is not in the controls area, navigate to post
-        if (clickY < (videoHeight - controlsHeight)) {
-          window.location.href = postUrl;
-        }
+      let wasPaused = video.paused;
+
+      video.addEventListener('mousedown', () => {
+        wasPaused = video.paused;
+      });
+
+      video.addEventListener('click', (e) => {
+        // Small delay to check if video state changed (play/pause was triggered)
+        setTimeout(() => {
+          const stateChanged = wasPaused !== video.paused;
+
+          // Don't navigate if video state changed (user clicked play/pause)
+          if (stateChanged) {
+            return;
+          }
+
+          // Don't navigate if clicking on video controls area
+          const rect = video.getBoundingClientRect();
+          const clickY = e.clientY - rect.top;
+          const videoHeight = rect.height;
+
+          // Controls are in bottom ~50px, but also check for center play button area
+          const controlsHeight = 50;
+          const isInControlsArea = clickY > (videoHeight - controlsHeight);
+
+          // Check if clicking near center (where play button overlay might be)
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          const clickX = e.clientX - rect.left;
+          const clickYRel = e.clientY - rect.top;
+          const distanceFromCenter = Math.sqrt(
+            Math.pow(clickX - centerX, 2) + Math.pow(clickYRel - centerY, 2)
+          );
+          const isNearCenter = distanceFromCenter < 60; // 60px radius from center
+
+          // Navigate only if not in controls and not clicking center play button
+          if (!isInControlsArea && !isNearCenter) {
+            window.location.href = postUrl;
+          }
+        }, 50);
       });
     }
 

@@ -365,7 +365,7 @@
       downloadBtn.style.cssText = `
         position: absolute;
         top: 10px;
-        right: 10px;
+        left: 10px;
         width: 44px;
         height: 44px;
         border-radius: 50%;
@@ -386,7 +386,7 @@
       downloadBtn.style.cssText = `
         position: absolute;
         top: 10px;
-        right: 10px;
+        left: 10px;
         width: 44px;
         height: 44px;
         border-radius: 50%;
