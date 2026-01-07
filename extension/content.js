@@ -331,14 +331,162 @@ function createFloatingButtons() {
   if (isPostPage) {
     // On post pages: download button appears on image hover
     createImageDownloadButton();
-    // Add save button on post pages
-    createSidebarSaveButton();
+    // Add controls panel on post pages
+    createExtensionControlsPanel();
   } else if (isListPage) {
-    // On list pages: add all sidebar buttons
-    createSidebarSaveButton();
-    createForceLoadButton();
-    createForceLoadVideosButton();
+    // On list pages: add controls panel
+    createExtensionControlsPanel();
   }
+}
+
+// Create styled container for all extension controls
+function createExtensionControlsPanel() {
+  const isPostPage = window.location.href.includes('page=post&s=view');
+  const isListPage = window.location.href.includes('page=post&s=list');
+
+  // Create main container
+  const controlsPanel = document.createElement('div');
+  controlsPanel.id = 'r34-tools-controls';
+  controlsPanel.style.cssText = `
+    width: 100%;
+    margin: 8px 0;
+    padding: 8px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 2px;
+  `;
+
+  // Create header with title only
+  const header = document.createElement('div');
+  header.style.cssText = `
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #333;
+  `;
+
+  // Title
+  const title = document.createElement('span');
+  title.textContent = 'R34 Tools';
+  title.style.cssText = `
+    color: #999;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  `;
+
+  header.appendChild(title);
+  controlsPanel.appendChild(header);
+
+  // Create buttons container
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.id = 'r34-tools-buttons';
+  buttonsContainer.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  `;
+
+  // Add save button
+  buttonsContainer.appendChild(createStyledButton(
+    '🔖',
+    'Save Page',
+    'Save page (Ctrl+Shift+S)',
+    '#00ff66',
+    () => handleSavePage()
+  ));
+
+  // Add force max quality button (list pages only)
+  if (isListPage) {
+    buttonsContainer.appendChild(createStyledButton(
+      '⚡',
+      'Force Max Quality',
+      'Load highest quality for all visible images',
+      '#66b3ff',
+      () => forceLoadAllMaxQuality()
+    ));
+
+    // Add force load videos button
+    buttonsContainer.appendChild(createStyledButton(
+      '▶',
+      'Force Load Videos',
+      'Load all videos on page',
+      '#ff66b3',
+      () => forceLoadAllVideos()
+    ));
+  }
+
+  controlsPanel.appendChild(buttonsContainer);
+
+  // Try to find search form and insert after it
+  const searchForm = document.querySelector('form[action*="list"]');
+  const sidebar = document.querySelector('#leftmenu, .sidebar, aside');
+
+  if (searchForm && searchForm.parentNode) {
+    // Insert after search form
+    searchForm.parentNode.insertBefore(controlsPanel, searchForm.nextSibling);
+  } else if (sidebar) {
+    // Fallback: insert at top of sidebar
+    sidebar.insertBefore(controlsPanel, sidebar.firstChild);
+  } else {
+    // Last resort: fixed position
+    controlsPanel.style.position = 'fixed';
+    controlsPanel.style.top = '10px';
+    controlsPanel.style.left = '10px';
+    controlsPanel.style.width = '200px';
+    controlsPanel.style.zIndex = '9999';
+    document.body.appendChild(controlsPanel);
+  }
+}
+
+// Helper function to create styled buttons
+function createStyledButton(emoji, label, tooltip, accentColor, onClick) {
+  const button = document.createElement('button');
+  button.title = tooltip;
+  button.style.cssText = `
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #333;
+    border-radius: 2px;
+    background: #0a0a0a;
+    color: #ccc;
+    font-weight: 500;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1.3;
+  `;
+
+  const emojiSpan = document.createElement('span');
+  emojiSpan.textContent = emoji;
+  emojiSpan.style.cssText = `
+    font-size: 11px;
+    opacity: 0.8;
+  `;
+
+  const labelSpan = document.createElement('span');
+  labelSpan.textContent = label;
+
+  button.appendChild(emojiSpan);
+  button.appendChild(labelSpan);
+
+  button.onmouseover = () => {
+    button.style.borderColor = '#555';
+    button.style.background = '#222';
+    button.style.color = accentColor;
+  };
+  button.onmouseout = () => {
+    button.style.borderColor = '#333';
+    button.style.background = '#0a0a0a';
+    button.style.color = '#ccc';
+  };
+
+  button.onclick = onClick;
+
+  return button;
 }
 
 // Create download button that appears on image/video hover
@@ -407,153 +555,6 @@ function createImageDownloadButton() {
   downloadBtn.addEventListener('mouseenter', showButton);
 
   downloadBtn.onclick = () => handleDownloadMedia();
-}
-
-// Create save button in sidebar
-function createSidebarSaveButton() {
-  const saveBtn = document.createElement('button');
-  saveBtn.id = 'r34-tools-save';
-  saveBtn.textContent = '🔖 Save';
-  saveBtn.title = 'Save page (Ctrl+Shift+S)';
-  saveBtn.style.cssText = `
-    width: 100%;
-    padding: 2px 6px;
-    margin-bottom: 4px;
-    border: 1px solid #2a2a2a;
-    border-radius: 2px;
-    background: #1a1a1a;
-    color: #00ff66;
-    font-weight: 600;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    line-height: 1.4;
-  `;
-  saveBtn.onmouseover = () => {
-    saveBtn.style.borderColor = '#00ff66';
-    saveBtn.style.background = '#2a2a2a';
-  };
-  saveBtn.onmouseout = () => {
-    saveBtn.style.borderColor = '#2a2a2a';
-    saveBtn.style.background = '#1a1a1a';
-  };
-  saveBtn.onclick = () => handleSavePage();
-
-  // Try to find sidebar search area
-  const searchForm = document.querySelector('form[action*="list"]');
-  const sidebar = document.querySelector('#leftmenu, .sidebar, aside');
-
-  if (searchForm) {
-    searchForm.parentNode.insertBefore(saveBtn, searchForm);
-  } else if (sidebar) {
-    sidebar.insertBefore(saveBtn, sidebar.firstChild);
-  } else {
-    // Fallback: fixed position top-left
-    saveBtn.style.position = 'fixed';
-    saveBtn.style.top = '10px';
-    saveBtn.style.left = '10px';
-    saveBtn.style.width = 'auto';
-    saveBtn.style.zIndex = '9999';
-    document.body.appendChild(saveBtn);
-  }
-}
-
-// Create force load highest quality button in sidebar
-function createForceLoadButton() {
-  const forceLoadBtn = document.createElement('button');
-  forceLoadBtn.id = 'r34-tools-force-load';
-  forceLoadBtn.textContent = '⚡ Force Max Quality';
-  forceLoadBtn.title = 'Load highest quality for all visible images';
-  forceLoadBtn.style.cssText = `
-    width: 100%;
-    padding: 2px 6px;
-    margin-bottom: 4px;
-    border: 1px solid #2a2a2a;
-    border-radius: 2px;
-    background: #1a1a1a;
-    color: #66b3ff;
-    font-weight: 600;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    line-height: 1.4;
-  `;
-  forceLoadBtn.onmouseover = () => {
-    forceLoadBtn.style.borderColor = '#66b3ff';
-    forceLoadBtn.style.background = '#2a2a2a';
-  };
-  forceLoadBtn.onmouseout = () => {
-    forceLoadBtn.style.borderColor = '#2a2a2a';
-    forceLoadBtn.style.background = '#1a1a1a';
-  };
-  forceLoadBtn.onclick = () => forceLoadAllMaxQuality();
-
-  // Try to find sidebar search area
-  const searchForm = document.querySelector('form[action*="list"]');
-  const sidebar = document.querySelector('#leftmenu, .sidebar, aside');
-
-  if (searchForm) {
-    searchForm.parentNode.insertBefore(forceLoadBtn, searchForm);
-  } else if (sidebar) {
-    sidebar.insertBefore(forceLoadBtn, sidebar.firstChild);
-  } else {
-    // Fallback: fixed position top-left
-    forceLoadBtn.style.position = 'fixed';
-    forceLoadBtn.style.top = '40px';
-    forceLoadBtn.style.left = '10px';
-    forceLoadBtn.style.width = 'auto';
-    forceLoadBtn.style.zIndex = '9999';
-    document.body.appendChild(forceLoadBtn);
-  }
-}
-
-// Create force load videos button in sidebar
-function createForceLoadVideosButton() {
-  const forceLoadVideosBtn = document.createElement('button');
-  forceLoadVideosBtn.id = 'r34-tools-force-load-videos';
-  forceLoadVideosBtn.textContent = '▶ Force Load Videos';
-  forceLoadVideosBtn.title = 'Load all videos on page';
-  forceLoadVideosBtn.style.cssText = `
-    width: 100%;
-    padding: 2px 6px;
-    margin-bottom: 4px;
-    border: 1px solid #2a2a2a;
-    border-radius: 2px;
-    background: #1a1a1a;
-    color: #ff66b3;
-    font-weight: 600;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    line-height: 1.4;
-  `;
-  forceLoadVideosBtn.onmouseover = () => {
-    forceLoadVideosBtn.style.borderColor = '#ff66b3';
-    forceLoadVideosBtn.style.background = '#2a2a2a';
-  };
-  forceLoadVideosBtn.onmouseout = () => {
-    forceLoadVideosBtn.style.borderColor = '#2a2a2a';
-    forceLoadVideosBtn.style.background = '#1a1a1a';
-  };
-  forceLoadVideosBtn.onclick = () => forceLoadAllVideos();
-
-  // Try to find sidebar search area
-  const searchForm = document.querySelector('form[action*="list"]');
-  const sidebar = document.querySelector('#leftmenu, .sidebar, aside');
-
-  if (searchForm) {
-    searchForm.parentNode.insertBefore(forceLoadVideosBtn, searchForm);
-  } else if (sidebar) {
-    sidebar.insertBefore(forceLoadVideosBtn, sidebar.firstChild);
-  } else {
-    // Fallback: fixed position top-left
-    forceLoadVideosBtn.style.position = 'fixed';
-    forceLoadVideosBtn.style.top = '70px';
-    forceLoadVideosBtn.style.left = '10px';
-    forceLoadVideosBtn.style.width = 'auto';
-    forceLoadVideosBtn.style.zIndex = '9999';
-    document.body.appendChild(forceLoadVideosBtn);
-  }
 }
 
 // Force load maximum quality for all thumbnails

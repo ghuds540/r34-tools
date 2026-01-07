@@ -10,13 +10,18 @@ Enable private browsing: `about:addons` → R34 Tools → Allow in Private Windo
 
 ## Features
 
+- **Sidebar Controls Panel** - Glowing green-bordered panel under search box with:
+  - 🔖 Save Page
+  - ⚡ Force Max Quality (loads full resolution for all images)
+  - ▶ Force Load Videos (loads all video thumbnails at once)
 - **Download media** with `Ctrl+Q` or hover buttons (post pages & thumbnails)
-- **Save pages** with `Ctrl+Shift+S` or 🔖 icons next to tags/artists
+- **Save pages** with `Ctrl+Shift+S` or sidebar button
 - **AMOLED dark theme** - Pure black backgrounds with green accents (enabled by default)
 - **High-quality previews** - Upgrades thumbnails to sample quality for better image clarity (enabled by default)
   - Green download button on hover to download full resolution
-  - Blue full-resolution button loads /images/ quality inline
-  - Videos auto-load into playable embed players (configurable)
+  - Blue "Load video" button for video thumbnails (no auto-load setting required)
+  - Blue "Load full resolution" button for images loads /images/ quality inline
+  - Videos can auto-load into playable embed players (configurable)
 - **Smart filenames** - `r34_{id}_{hash}_{artists}.ext`
 - **JSON metadata** - Saves as `{timestamp}_r34.json` with URL, artists, post ID
 
@@ -46,3 +51,6 @@ npm run build
 - Seen/hidden post filter to avoid seeing things already reviewed (requires host integration)
 - optionally add page nav bar copy to top of page
 - pull from pool of rule34 mascot to replace sidebar one
+- code refactor
+- stash integration with API and host
+- scaling
