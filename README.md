@@ -1,12 +1,14 @@
 # R34 Tools
 
-> Firefox extension for rule34.xxx with downloads, AMOLED theming, and quality upgrades
+A Firefox extension for rule34.xxx with downloads, AMOLED theming, and quality upgrades
 
 [![Firefox](https://img.shields.io/badge/Firefox-Manifest%20V2-orange.svg)](https://www.mozilla.org/firefox/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > [!WARNING]  
 > This plugin has been completely vibe coded to fit my own needs. If you choose to use this, you are doing so at your own risk.
+
+<img width="1099" height="461" alt="image" src="https://github.com/user-attachments/assets/aea15168-0589-4898-ad92-90424482013e" />
 
 ---
 
