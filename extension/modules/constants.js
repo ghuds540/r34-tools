@@ -211,7 +211,11 @@
     autoLoadVideoEmbeds: true,
     autoStartEmbedVideos: true,
     thumbnailScale: 1.0,
-    duplicatePagination: false
+    duplicatePagination: false,
+    hideTagWiki: false,
+    hideTagAdd: false,
+    hideTagRemove: false,
+    hideTagBookmark: false
   };
 
   // Thumbnail scale options
@@ -264,7 +268,21 @@
     linksHover: 'color: #00ff66 !important; text-decoration: underline !important;',
     panels: 'background: #000000 !important;',
     cards: 'background: #000000 !important; border-color: #333333 !important;',
-    autocomplete: 'background: #000000 !important; border-color: #333333 !important; color: #ffffff !important;'
+    autocomplete: 'background: #000000 !important; border-color: #333333 !important; color: #ffffff !important;',
+
+    // Tag colors
+    tagArtist: 'color: #ff0099 !important; text-decoration: underline !important;',
+    tagArtistHover: 'color: #ff33aa !important; text-decoration: underline !important;',
+    tagCharacter: 'color: #00ffff !important; text-decoration: underline !important;',
+    tagCharacterHover: 'color: #66ffff !important; text-decoration: underline !important;',
+    tagGeneral: 'color: #00ff66 !important; text-decoration: underline !important;',
+    tagGeneralHover: 'color: #66ff99 !important; text-decoration: underline !important;',
+    tagCopyright: 'color: #9966ff !important; text-decoration: underline !important;',
+    tagCopyrightHover: 'color: #bb99ff !important; text-decoration: underline !important;',
+    tagMeta: 'color: #ff9933 !important; text-decoration: underline !important;',
+    tagMetaHover: 'color: #ffbb66 !important; text-decoration: underline !important;',
+    tagSpecies: 'color: #66ffcc !important; text-decoration: underline !important;',
+    tagSpeciesHover: 'color: #99ffdd !important; text-decoration: underline !important;'
   };
 
   // Compact header styles
@@ -323,7 +341,15 @@
     notificationErrorBorder: '#4a1a1a',
     notificationInfoBg: '#0f2f1a',
     notificationInfoText: '#00ff66',
-    notificationInfoBorder: '#1a4a2a'
+    notificationInfoBorder: '#1a4a2a',
+
+    // Tag colors (neon theme)
+    tagArtist: '#ff0099',        // Hot pink for artists (more distinct from purple)
+    tagCharacter: '#00ffff',     // Neon cyan for characters
+    tagGeneral: '#00ff66',       // Neon green for general tags
+    tagCopyright: '#9966ff',     // Blue-purple for copyright (more distinct from pink)
+    tagMeta: '#ff9933',          // Neon orange for meta tags
+    tagSpecies: '#66ffcc'        // Neon teal for species tags
   };
 
   // Default theme colors (light backgrounds + blue accents)

@@ -840,6 +840,29 @@
       .${CLASS_NAMES.saveLinkIcon} { color: #00ff66 !important; }
       .${CLASS_NAMES.saveLinkIcon} svg { stroke: #00ff66 !important; }
       div.status-notice { background: #000000 !important; border-color: #333333 !important; color: #00ff66 !important; }
+
+      /* Tag type color coding with neon theme */
+      .tag-type-artist a, li[class*="tag-type-artist"] a { ${AMOLED_THEME_RULES.tagArtist} }
+      .tag-type-artist a:hover, li[class*="tag-type-artist"] a:hover { ${AMOLED_THEME_RULES.tagArtistHover} }
+
+      .tag-type-character a, li[class*="tag-type-character"] a { ${AMOLED_THEME_RULES.tagCharacter} }
+      .tag-type-character a:hover, li[class*="tag-type-character"] a:hover { ${AMOLED_THEME_RULES.tagCharacterHover} }
+
+      .tag-type-copyright a, li[class*="tag-type-copyright"] a { ${AMOLED_THEME_RULES.tagCopyright} }
+      .tag-type-copyright a:hover, li[class*="tag-type-copyright"] a:hover { ${AMOLED_THEME_RULES.tagCopyrightHover} }
+
+      .tag-type-metadata a, li[class*="tag-type-metadata"] a,
+      .tag-type-meta a, li[class*="tag-type-meta"] a { ${AMOLED_THEME_RULES.tagMeta} }
+      .tag-type-metadata a:hover, li[class*="tag-type-metadata"] a:hover,
+      .tag-type-meta a:hover, li[class*="tag-type-meta"] a:hover { ${AMOLED_THEME_RULES.tagMetaHover} }
+
+      .tag-type-species a, li[class*="tag-type-species"] a { ${AMOLED_THEME_RULES.tagSpecies} }
+      .tag-type-species a:hover, li[class*="tag-type-species"] a:hover { ${AMOLED_THEME_RULES.tagSpeciesHover} }
+
+      .tag-type-general a, li[class*="tag-type-general"] a,
+      .tag a:not([class*="tag-type-"]) { ${AMOLED_THEME_RULES.tagGeneral} }
+      .tag-type-general a:hover, li[class*="tag-type-general"] a:hover,
+      .tag a:not([class*="tag-type-"]):hover { ${AMOLED_THEME_RULES.tagGeneralHover} }
     `;
 
     document.head.appendChild(style);
@@ -904,6 +927,93 @@
     `;
 
     document.head.appendChild(style);
+  }
+
+  /**
+   * Hide tag action buttons (?, +, -) and bookmark icons based on settings
+   */
+  async function hideTagActionButtons() {
+    const settings = await settingsManager.getAll();
+
+    // Build CSS rules based on which options are enabled
+    let cssRules = [];
+
+    if (settings.hideTagWiki) {
+      cssRules.push(`
+        /* Hide wiki/help (?) buttons */
+        .tag-type-artist > a[href*="page=wiki"],
+        .tag-type-character > a[href*="page=wiki"],
+        .tag-type-copyright > a[href*="page=wiki"],
+        .tag-type-general > a[href*="page=wiki"],
+        .tag-type-metadata > a[href*="page=wiki"],
+        .tag-type-meta > a[href*="page=wiki"],
+        .tag-type-species > a[href*="page=wiki"],
+        li[class*="tag-type"] > a[href*="page=wiki"] {
+          display: none !important;
+        }
+      `);
+    }
+
+    if (settings.hideTagAdd) {
+      cssRules.push(`
+        /* Hide add (+) buttons - matches onclick with += " " */
+        .tag-type-artist > a[onclick*='value += " "'],
+        .tag-type-character > a[onclick*='value += " "'],
+        .tag-type-copyright > a[onclick*='value += " "'],
+        .tag-type-general > a[onclick*='value += " "'],
+        .tag-type-metadata > a[onclick*='value += " "'],
+        .tag-type-meta > a[onclick*='value += " "'],
+        .tag-type-species > a[onclick*='value += " "'],
+        li[class*="tag-type"] > a[onclick*='value += " "'] {
+          display: none !important;
+        }
+      `);
+    }
+
+    if (settings.hideTagRemove) {
+      cssRules.push(`
+        /* Hide remove (-) buttons - matches onclick with += " -" */
+        .tag-type-artist > a[onclick*='value += " -"'],
+        .tag-type-character > a[onclick*='value += " -"'],
+        .tag-type-copyright > a[onclick*='value += " -"'],
+        .tag-type-general > a[onclick*='value += " -"'],
+        .tag-type-metadata > a[onclick*='value += " -"'],
+        .tag-type-meta > a[onclick*='value += " -"'],
+        .tag-type-species > a[onclick*='value += " -"'],
+        li[class*="tag-type"] > a[onclick*='value += " -"'] {
+          display: none !important;
+        }
+      `);
+    }
+
+    if (settings.hideTagBookmark) {
+      cssRules.push(`
+        /* Hide bookmark icons */
+        .${CLASS_NAMES.saveLinkIcon} {
+          display: none !important;
+        }
+      `);
+    }
+
+    // Only inject stylesheet if at least one option is enabled
+    if (cssRules.length === 0) return;
+
+    if (document.getElementById('r34-hide-tag-actions')) {
+      document.getElementById('r34-hide-tag-actions').remove();
+    }
+
+    const style = document.createElement('style');
+    style.id = 'r34-hide-tag-actions';
+    style.textContent = cssRules.join('\n');
+
+    document.head.appendChild(style);
+
+    console.log('[R34 Tools] Applied tag hiding CSS:', {
+      hideTagWiki: settings.hideTagWiki,
+      hideTagAdd: settings.hideTagAdd,
+      hideTagRemove: settings.hideTagRemove,
+      hideTagBookmark: settings.hideTagBookmark
+    });
   }
 
   // =============================================================================
@@ -1090,6 +1200,7 @@
     // Apply theme and layout modifications first
     await applyAmoledTheme();
     await applyDefaultTheme();
+    await hideTagActionButtons();
     await applyCompactHeader();
     removeRightSidebar();
     await duplicatePaginationToTop();
@@ -1123,6 +1234,19 @@
 
     console.log('[R34 Tools] Initialization complete');
   }
+
+  // Listen for settings changes and update tag hiding dynamically
+  browser.storage.local.onChanged.addListener((changes, area) => {
+    if (area === 'local') {
+      const tagHidingKeys = ['hideTagWiki', 'hideTagAdd', 'hideTagRemove', 'hideTagBookmark'];
+      const hasTagHidingChange = tagHidingKeys.some(key => key in changes);
+
+      if (hasTagHidingChange) {
+        console.log('[R34 Tools] Tag hiding settings changed, re-applying...');
+        hideTagActionButtons();
+      }
+    }
+  });
 
   // Start initialization when DOM is ready
   if (document.readyState === 'loading') {

@@ -33,6 +33,10 @@ async function loadSettings() {
     amoledTheme: true,
     compactHeader: true,
     duplicatePagination: false,
+    hideTagWiki: false,
+    hideTagAdd: false,
+    hideTagRemove: false,
+    hideTagBookmark: false,
     highQualityPreviews: true,
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
@@ -44,6 +48,10 @@ async function loadSettings() {
   document.getElementById('amoledTheme').checked = settings.amoledTheme;
   document.getElementById('compactHeader').checked = settings.compactHeader;
   document.getElementById('duplicatePagination').checked = settings.duplicatePagination;
+  document.getElementById('hideTagWiki').checked = settings.hideTagWiki;
+  document.getElementById('hideTagAdd').checked = settings.hideTagAdd;
+  document.getElementById('hideTagRemove').checked = settings.hideTagRemove;
+  document.getElementById('hideTagBookmark').checked = settings.hideTagBookmark;
   document.getElementById('highQualityPreviews').checked = settings.highQualityPreviews;
   document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
   document.getElementById('autoLoadVideoEmbeds').checked = settings.autoLoadVideoEmbeds;
@@ -106,6 +114,10 @@ function setupEventListeners() {
   });
   document.getElementById('compactHeader').addEventListener('change', autoSaveSettings);
   document.getElementById('duplicatePagination').addEventListener('change', autoSaveSettings);
+  document.getElementById('hideTagWiki').addEventListener('change', autoSaveSettings);
+  document.getElementById('hideTagAdd').addEventListener('change', autoSaveSettings);
+  document.getElementById('hideTagRemove').addEventListener('change', autoSaveSettings);
+  document.getElementById('hideTagBookmark').addEventListener('change', autoSaveSettings);
   document.getElementById('highQualityPreviews').addEventListener('change', autoSaveSettings);
   document.getElementById('alwaysUseFullResolution').addEventListener('change', autoSaveSettings);
   document.getElementById('autoLoadVideoEmbeds').addEventListener('change', autoSaveSettings);
@@ -284,6 +296,10 @@ async function autoSaveSettings() {
     amoledTheme: document.getElementById('amoledTheme').checked,
     compactHeader: document.getElementById('compactHeader').checked,
     duplicatePagination: document.getElementById('duplicatePagination').checked,
+    hideTagWiki: document.getElementById('hideTagWiki').checked,
+    hideTagAdd: document.getElementById('hideTagAdd').checked,
+    hideTagRemove: document.getElementById('hideTagRemove').checked,
+    hideTagBookmark: document.getElementById('hideTagBookmark').checked,
     highQualityPreviews: document.getElementById('highQualityPreviews').checked,
     alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked,
     autoLoadVideoEmbeds: document.getElementById('autoLoadVideoEmbeds').checked,
@@ -304,6 +320,10 @@ async function resetSettings() {
     amoledTheme: true,
     compactHeader: true,
     duplicatePagination: false,
+    hideTagWiki: false,
+    hideTagAdd: false,
+    hideTagRemove: false,
+    hideTagBookmark: false,
     highQualityPreviews: true,
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
