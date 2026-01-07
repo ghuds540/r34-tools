@@ -46,10 +46,10 @@ npm run build
 
 ## Future Ideas
 
+- fix ugly non AMOLED theme.
 - Troubleshoot why not every image is showing in force full res (404s)
 - Override pagination to load more results at once
 - Seen/hidden post filter to avoid seeing things already reviewed (requires host integration)
-- optionally add page nav bar copy to top of page
 - pull from pool of rule34 mascot to replace sidebar one
 - code refactor
 - stash integration with API and host

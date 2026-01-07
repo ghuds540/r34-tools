@@ -428,7 +428,7 @@
     });
 
     // Update button highlights
-    updateScaleButtonHighlights(scale);
+    await updateScaleButtonHighlights(scale);
 
     if (!silent) {
       showNotification(`Thumbnail scale: ${scale}x`, 'success');
@@ -439,15 +439,27 @@
    * Update scale button highlights to show current scale
    * @param {number} currentScale - Current scale value
    */
-  function updateScaleButtonHighlights(currentScale) {
+  async function updateScaleButtonHighlights(currentScale) {
+    const settings = await settingsManager.getAll();
     const scaleButtons = document.querySelectorAll('.r34-scale-btn');
+
     scaleButtons.forEach(btn => {
       const btnScale = parseFloat(btn.dataset.scale);
       if (btnScale === currentScale) {
-        btn.style.background = COLORS.accent.green;
-        btn.style.color = '#000000';
-        btn.style.borderColor = COLORS.accent.green;
+        // Active button
+        btn.classList.add('r34-scale-active');
+        if (settings.amoledTheme) {
+          btn.style.background = COLORS.accent.green;
+          btn.style.color = '#000000';
+          btn.style.borderColor = COLORS.accent.green;
+        } else {
+          btn.style.background = '#3399ff';
+          btn.style.color = '#ffffff';
+          btn.style.borderColor = '#3399ff';
+        }
       } else {
+        // Inactive button
+        btn.classList.remove('r34-scale-active');
         btn.style.background = BUTTON_STYLES.panel.background;
         btn.style.color = BUTTON_STYLES.panel.color;
         btn.style.borderColor = BUTTON_STYLES.panel.borderColor;
@@ -563,22 +575,82 @@
     if (!settings.duplicatePagination) return;
 
     // Check if already duplicated
-    if (document.getElementById('r34-top-pagination')) return;
+    if (document.querySelector('[data-r34-top-pagination]')) return;
 
-    // Find the bottom pagination
-    const bottomPagination = safeQuerySelector(SELECTORS.pagination);
+    // Find the bottom pagination (could be .pagination or #paginator)
+    const bottomPagination = safeQuerySelector(SELECTORS.pagination) || document.querySelector('#paginator');
     if (!bottomPagination) return;
 
-    // Clone it
+    // Find the content div specifically - it's inside #post-list
+    const postListDiv = document.querySelector('#post-list');
+    if (!postListDiv) return;
+
+    const contentDiv = postListDiv.querySelector('.content');
+    if (!contentDiv) return;
+
+    // Clone it deeply (including all child nodes and attributes)
     const topPagination = bottomPagination.cloneNode(true);
-    topPagination.id = 'r34-top-pagination';
+
+    // Remove ID to avoid duplicates (IDs must be unique)
+    if (topPagination.id) {
+      topPagination.removeAttribute('id');
+    }
+
+    // Remove IDs from all child elements too
+    topPagination.querySelectorAll('[id]').forEach(element => {
+      element.removeAttribute('id');
+    });
+
+    // Mark it as duplicated with data attribute
+    topPagination.setAttribute('data-r34-top-pagination', 'true');
+
+    // Copy critical computed styles from the original to preserve appearance
+    const computedStyles = window.getComputedStyle(bottomPagination);
+    const stylesToCopy = [
+      'display', 'textAlign', 'padding', 'margin',
+      'border', 'borderWidth', 'borderStyle', 'borderColor',
+      'backgroundColor', 'fontSize', 'fontWeight', 'fontFamily',
+      'color', 'lineHeight', 'width', 'maxWidth'
+    ];
+
+    stylesToCopy.forEach(prop => {
+      const value = computedStyles.getPropertyValue(prop);
+      if (value && value !== 'none' && value !== 'auto') {
+        topPagination.style[prop] = value;
+      }
+    });
+
+    // Copy styles for child elements (links, buttons, spans) to preserve their appearance
+    const originalLinks = bottomPagination.querySelectorAll('a, b, strong, span');
+    const clonedLinks = topPagination.querySelectorAll('a, b, strong, span');
+
+    originalLinks.forEach((originalEl, index) => {
+      if (clonedLinks[index]) {
+        const elStyles = window.getComputedStyle(originalEl);
+        const linkStylesToCopy = ['color', 'textDecoration', 'fontWeight', 'padding', 'margin', 'border'];
+
+        linkStylesToCopy.forEach(prop => {
+          const value = elStyles.getPropertyValue(prop);
+          if (value && value !== 'none') {
+            clonedLinks[index].style[prop] = value;
+          }
+        });
+      }
+    });
+
+    // Override margin-bottom for spacing between pagination and content
     topPagination.style.marginBottom = '16px';
 
-    // Find the content area to insert before
-    const content = safeQuerySelector(SELECTORS.content);
-    if (content && content.firstChild) {
-      content.insertBefore(topPagination, content.firstChild);
+    // Ensure center alignment (critical for matching original appearance)
+    topPagination.style.textAlign = 'center';
+
+    // Ensure display block if the original uses it
+    if (computedStyles.display !== 'none') {
+      topPagination.style.display = computedStyles.display;
     }
+
+    // Insert as first child of content div (appears at top)
+    contentDiv.insertBefore(topPagination, contentDiv.firstChild);
   }
 
   // =============================================================================
@@ -608,12 +680,131 @@
       a { ${AMOLED_THEME_RULES.links} }
       a:hover { ${AMOLED_THEME_RULES.linksHover} }
       .thumb, .thumbnail { ${AMOLED_THEME_RULES.panels} }
-      .pagination, .paginator { ${AMOLED_THEME_RULES.cards} }
+      .pagination, .paginator, [data-r34-top-pagination] { ${AMOLED_THEME_RULES.cards} }
+      [data-r34-top-pagination] a { ${AMOLED_THEME_RULES.links} }
+      [data-r34-top-pagination] a:hover { ${AMOLED_THEME_RULES.linksHover} }
       table, th, td { ${AMOLED_THEME_RULES.borders} }
       .awesomplete ul { background: #000000 !important; border: 1px solid #333333 !important; }
       .awesomplete li { background: #000000 !important; color: #ffffff !important; }
       .awesomplete li:hover, .awesomplete li[aria-selected="true"] { background: #1a1a1a !important; }
       .awesomplete mark { background: #00ff66 !important; color: #000000 !important; }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Apply default theme styling for extension elements
+   * Used when AMOLED theme is disabled
+   */
+  async function applyDefaultTheme() {
+    const settings = await settingsManager.getAll();
+    if (settings.amoledTheme) return;
+
+    if (document.getElementById('r34-default-theme')) return;
+
+    const style = document.createElement('style');
+    style.id = 'r34-default-theme';
+    style.textContent = `
+      /* Extension controls panel */
+      #r34-extension-controls {
+        background: #f5f5f5 !important;
+        border: 1px solid #3399ff !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+      }
+
+      /* Panel buttons */
+      #r34-extension-controls button {
+        background: #ffffff !important;
+        color: #333333 !important;
+        border-color: #cccccc !important;
+      }
+
+      #r34-extension-controls button:hover {
+        background: #e8e8e8 !important;
+        border-color: #3399ff !important;
+        color: #3399ff !important;
+      }
+
+      /* Thumbnail size label */
+      #r34-extension-controls div[style*="color: rgb(0, 255, 102)"] {
+        color: #3399ff !important;
+      }
+
+      /* Scale buttons */
+      .r34-scale-btn {
+        background: #ffffff !important;
+        color: #333333 !important;
+        border-color: #cccccc !important;
+      }
+
+      .r34-scale-btn:hover {
+        background: #e8e8e8 !important;
+        border-color: #3399ff !important;
+      }
+
+      /* Active scale button */
+      .r34-scale-btn.r34-scale-active {
+        background: #3399ff !important;
+        color: #ffffff !important;
+        border-color: #3399ff !important;
+      }
+
+      /* Floating post buttons */
+      #r34-tools-floating-buttons button {
+        background: #ffffff !important;
+        border: 1px solid #3399ff !important;
+        color: #3399ff !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+      }
+
+      #r34-tools-floating-buttons button:hover {
+        background: #3399ff !important;
+        color: #ffffff !important;
+      }
+
+      /* Compact header arrow button */
+      #r34-header-arrow {
+        background: #ffffff !important;
+        color: #333333 !important;
+        border-color: #cccccc !important;
+      }
+
+      #r34-header-arrow:hover {
+        background: #e8e8e8 !important;
+        border-color: #3399ff !important;
+      }
+
+      /* Save icons */
+      .r34-save-link-icon {
+        color: #3399ff !important;
+      }
+
+
+      /* Thumbnail circular buttons - make them more visible on light backgrounds */
+      .r34-thumb-download,
+      .r34-thumb-fullres {
+        opacity: 0.9 !important;
+      }
+
+      .r34-thumb-download:hover,
+      .r34-thumb-fullres:hover {
+        opacity: 1 !important;
+      }
+
+      /* Quality badge on default theme */
+      .r34-quality-badge {
+        border: 1px solid #666666 !important;
+      }
+
+      /* Post download button on default theme */
+      .r34-post-download-btn {
+        opacity: 0.9 !important;
+      }
+
+      .r34-post-download-btn:hover {
+        opacity: 1 !important;
+      }
     `;
 
     document.head.appendChild(style);
@@ -787,6 +978,7 @@
 
     // Apply theme and layout modifications first
     await applyAmoledTheme();
+    await applyDefaultTheme();
     await applyCompactHeader();
     removeRightSidebar();
     await duplicatePaginationToTop();
@@ -800,10 +992,10 @@
     // Apply saved thumbnail scale
     const settings = await settingsManager.getAll();
     if (settings.thumbnailScale && settings.thumbnailScale !== 1.0) {
-      applyThumbnailScale(settings.thumbnailScale, true); // Silent mode on page load
+      await applyThumbnailScale(settings.thumbnailScale, true); // Silent mode on page load
     } else {
       // Ensure buttons are highlighted for default scale
-      updateScaleButtonHighlights(settings.thumbnailScale || 1.0);
+      await updateScaleButtonHighlights(settings.thumbnailScale || 1.0);
     }
 
     // Setup thumbnail features
