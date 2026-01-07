@@ -5,9 +5,6 @@
   - bookmarked page deduplication and retrieval to persist between sessions (fill in bookmark solid color)
 - fix some posts not auto forcing higher quality
 - hotkeys for next/last page
-- zooming in page doesnt wrap results
-- thumbnail sizes dont scale contained images up well
-- have to refresh after enlarging thumbnail sizes
 - for posts that have parent/child posts, add a "download collection" button
 - temporary session storage track bookmark to show if saved
 - maybe enable option for thumbnail size label to show the true underlying media dimensions and not just the preview
