@@ -337,8 +337,11 @@
     const settings = await settingsManager.getAll();
     const theme = getThemeColors(settings);
 
+    const isVideo = imageElement.tagName === 'VIDEO';
+    
+    // For videos, use parent container; for images, create wrapper
     let wrapper = imageElement.parentElement;
-    if (!wrapper.classList.contains('r34-tools-wrapper')) {
+    if (!isVideo && !wrapper.classList.contains('r34-tools-wrapper')) {
       const newWrapper = document.createElement('div');
       newWrapper.className = 'r34-tools-wrapper';
       newWrapper.style.cssText = `
@@ -349,6 +352,11 @@
       imageElement.parentNode.insertBefore(newWrapper, imageElement);
       newWrapper.appendChild(imageElement);
       wrapper = newWrapper;
+    }
+    
+    // For videos, ensure parent has position relative
+    if (isVideo && window.getComputedStyle(wrapper).position === 'static') {
+      wrapper.style.position = 'relative';
     }
 
     const downloadBtn = document.createElement('button');
@@ -429,20 +437,110 @@
 
     wrapper.appendChild(downloadBtn);
 
-    // Show/hide button on hover
-    const showButton = () => {
+    // Create resolution/sound info badge
+    const infoBadge = document.createElement('div');
+    infoBadge.className = 'r34-post-info-badge';
+    
+    // Get media dimensions and audio info
+    const getMediaInfo = () => {
+      if (isVideo) {
+        const hasAudio = imageElement.mozHasAudio || 
+                        Boolean(imageElement.webkitAudioDecodedByteCount) ||
+                        Boolean(imageElement.audioTracks && imageElement.audioTracks.length);
+        const width = imageElement.videoWidth || 0;
+        const height = imageElement.videoHeight || 0;
+        return { width, height, hasAudio, isVideo: true };
+      } else {
+        return { 
+          width: imageElement.naturalWidth || 0, 
+          height: imageElement.naturalHeight || 0, 
+          hasAudio: false, 
+          isVideo: false 
+        };
+      }
+    };
+    
+    const updateInfoBadge = () => {
+      const info = getMediaInfo();
+      if (info.width && info.height) {
+        const audioIcon = info.hasAudio ? '🔊' : (info.isVideo ? '🔇' : '');
+        infoBadge.textContent = `${info.width}×${info.height}${audioIcon ? ' ' + audioIcon : ''}`;
+        infoBadge.style.display = 'block';
+      } else {
+        infoBadge.style.display = 'none';
+      }
+    };
+    
+    // Style the info badge
+    if (settings.amoledTheme) {
+      infoBadge.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.8);
+        color: ${theme.primary};
+        font-size: 20px !important;
+        font-weight: 600;
+        font-family: monospace;
+        pointer-events: none;
+        z-index: 100;
+        border: 1px solid ${theme.primary};
+        display: none;
+        line-height: 1.2;
+      `;
+    } else {
+      infoBadge.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.9);
+        color: ${theme.text};
+        font-size: 20px !important;
+        font-weight: 600;
+        font-family: monospace;
+        pointer-events: none;
+        z-index: 100;
+        border: 1px solid ${theme.border};
+        display: none;
+        line-height: 1.2;
+      `;
+    }
+    
+    wrapper.appendChild(infoBadge);
+    
+    // Update badge when metadata loads
+    if (isVideo) {
+      imageElement.addEventListener('loadedmetadata', updateInfoBadge);
+      if (imageElement.readyState >= 1) {
+        updateInfoBadge();
+      }
+    } else {
+      if (imageElement.complete) {
+        updateInfoBadge();
+      }
+      imageElement.addEventListener('load', updateInfoBadge);
+    }
+
+    // Show/hide button and badge on hover
+    const showElements = () => {
       downloadBtn.style.opacity = '1';
       downloadBtn.style.pointerEvents = 'auto';
+      infoBadge.style.display = 'block';
     };
 
-    const hideButton = () => {
+    const hideElements = () => {
       downloadBtn.style.opacity = '0';
       downloadBtn.style.pointerEvents = 'none';
+      infoBadge.style.display = 'none';
     };
 
-    wrapper.addEventListener('mouseenter', showButton);
-    wrapper.addEventListener('mouseleave', hideButton);
-    imageElement.addEventListener('mouseenter', showButton);
+    wrapper.addEventListener('mouseenter', showElements);
+    wrapper.addEventListener('mouseleave', hideElements);
+    imageElement.addEventListener('mouseenter', showElements);
   }
 
   // =============================================================================
@@ -828,7 +926,7 @@
       #content, .content { ${AMOLED_THEME_RULES.content} }
       #leftmenu, .sidebar, aside { ${AMOLED_THEME_RULES.sidebar} }
       #navbar, #subnavbar, #header, header { ${AMOLED_THEME_RULES.navigation} }
-      p, div, span, li { ${AMOLED_THEME_RULES.text} }
+      p, div:not([class*="fluid"]):not([id*="fluid"]), span:not([class*="fluid"]), li { ${AMOLED_THEME_RULES.text} }
       input, select, textarea { ${AMOLED_THEME_RULES.inputs} }
       button { ${AMOLED_THEME_RULES.buttons} }
       button[type="submit"], input[type="submit"] { background: #00ff66 !important; color: #000000 !important; border-color: #00ff66 !important; }
@@ -911,6 +1009,11 @@
       ul li.tag-type-general a:hover,
       #tag-sidebar .tag-type-general a:hover,
       .tag a:not([class*="tag-type-"]):hover { ${AMOLED_THEME_RULES.tagGeneralHover} }
+
+      /* Ensure video controls display properly */
+      video::-webkit-media-controls-panel { display: flex !important; }
+      video::-webkit-media-controls-current-time-display,
+      video::-webkit-media-controls-time-remaining-display { display: block !important; }
     `;
 
     document.head.appendChild(style);

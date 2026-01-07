@@ -15,3 +15,10 @@ long game:
 - visual sorting stuff (auto adds score:ascending, etc)
 - easily bookmark actual posts for later from hover
 - starred/hearted tags/artists,etc
+
+small easy fixes:
+- make default thumbnail scale dropdown actually have a default value selected
+
+small features:
+- when visiting post page for a video, start playing it immediately
+  - maybe also have options for default volume (R34 hard codes it to be low)

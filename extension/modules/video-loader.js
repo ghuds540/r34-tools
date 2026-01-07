@@ -162,19 +162,42 @@
    */
   function createVideoElement(videoUrl, imgStyles, autoplay = false, postUrl = null, maxAutoplay = -1) {
     const video = document.createElement('video');
-    video.src = videoUrl;
     video.controls = true;
     video.loop = true;
     video.muted = true;
+    video.preload = 'metadata'; // Ensure metadata is loaded for timeline
+    
+    // Prevent FluidPlayer from hijacking our video element
+    video.classList.add('r34-tools-video');
+    video.setAttribute('data-fluid-player-initialized', 'false');
     
     // Check autoplay limit
     const shouldAutoplay = autoplay && (maxAutoplay === -1 || autoplayedVideosCount < maxAutoplay);
-    video.autoplay = shouldAutoplay;
     
     // Track autoplayed videos
     if (shouldAutoplay) {
       autoplayedVideosCount++;
     }
+    
+    // Set src - DON'T call load() yet (needs to be in DOM first)
+    video.src = videoUrl;
+    
+    // Debug: Log when metadata loads
+    video.addEventListener('loadedmetadata', () => {
+      console.log('[R34 Tools] Video metadata loaded - Duration:', video.duration, 'Current time:', video.currentTime);
+      
+      // Handle autoplay after metadata loads
+      if (shouldAutoplay) {
+        video.play().catch(e => {
+          console.log('[R34 Tools] Autoplay prevented:', e);
+        });
+      }
+    }, { once: true });
+    
+    // Debug: Log errors
+    video.addEventListener('error', (e) => {
+      console.error('[R34 Tools] Video error:', e, video.error);
+    });
 
     // Copy styles from original image
     video.style.cssText = imgStyles;
@@ -246,6 +269,9 @@
   function replaceImageWithVideo(img, video, wrapper) {
     // Replace image with video
     img.parentNode.replaceChild(video, img);
+
+    // Now that video is in DOM, load it
+    video.load();
 
     // Reattach buttons if wrapper provided
     if (wrapper) {
@@ -331,6 +357,10 @@
     const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos);
 
     img.parentNode.replaceChild(video, img);
+    
+    // Now that video is in DOM, load it
+    video.load();
+    
     console.log('[R34 Tools] Replaced thumbnail with video player');
 
     if (wrapper) {
