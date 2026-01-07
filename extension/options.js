@@ -3,8 +3,22 @@
 let isRecording = false;
 let currentRecordingInput = null;
 
+// Apply theme to options page based on AMOLED setting
+async function applyOptionsTheme() {
+  const settings = await browser.storage.local.get({ amoledTheme: true });
+
+  if (settings.amoledTheme) {
+    document.body.classList.add('amoled-theme');
+    document.body.classList.remove('default-theme');
+  } else {
+    document.body.classList.add('default-theme');
+    document.body.classList.remove('amoled-theme');
+  }
+}
+
 // Load settings on page load
 document.addEventListener('DOMContentLoaded', async () => {
+  await applyOptionsTheme();
   await loadSettings();
   setupEventListeners();
   await loadCurrentShortcuts();
@@ -86,7 +100,10 @@ function setupEventListeners() {
 
   // Auto-save on change for all settings
   document.getElementById('conflictAction').addEventListener('change', autoSaveSettings);
-  document.getElementById('amoledTheme').addEventListener('change', autoSaveSettings);
+  document.getElementById('amoledTheme').addEventListener('change', async () => {
+    await autoSaveSettings();
+    await applyOptionsTheme();
+  });
   document.getElementById('compactHeader').addEventListener('change', autoSaveSettings);
   document.getElementById('duplicatePagination').addEventListener('change', autoSaveSettings);
   document.getElementById('highQualityPreviews').addEventListener('change', autoSaveSettings);

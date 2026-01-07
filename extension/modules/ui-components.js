@@ -5,7 +5,8 @@
   'use strict';
 
   // Get dependencies
-  const { COLORS, NOTIFICATION_CONFIG, TIMINGS, BUTTON_STYLES, GRADIENTS, SVG_ICONS, CLASS_NAMES, QUALITY_BADGES } = window.R34Tools;
+  const { COLORS, NOTIFICATION_CONFIG, TIMINGS, BUTTON_STYLES, GRADIENTS, SVG_ICONS, CLASS_NAMES, QUALITY_BADGES, getThemeColors } = window.R34Tools;
+  const { settingsManager } = window.R34Tools;
 
   // Track active notifications for stacking
   const activeNotifications = [];
@@ -15,10 +16,30 @@
    * @param {string} message - Notification message
    * @param {string} type - Notification type: 'info', 'success', or 'error'
    */
-  function showNotification(message, type = 'info') {
+  async function showNotification(message, type = 'info') {
+    const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
     const notification = document.createElement('div');
 
-    const colorScheme = COLORS[type] || COLORS.info;
+    // Map type to theme notification colors
+    const notificationColors = {
+      success: {
+        bg: theme.notificationSuccessBg,
+        text: theme.notificationSuccessText,
+        border: theme.notificationSuccessBorder
+      },
+      error: {
+        bg: theme.notificationErrorBg,
+        text: theme.notificationErrorText,
+        border: theme.notificationErrorBorder
+      },
+      info: {
+        bg: theme.notificationInfoBg,
+        text: theme.notificationInfoText,
+        border: theme.notificationInfoBorder
+      }
+    };
+    const colorScheme = notificationColors[type] || notificationColors.info;
 
     // Calculate vertical position based on existing notifications
     let topPosition = NOTIFICATION_CONFIG.startTop;
@@ -91,27 +112,52 @@
    * @param {Function} onClick - Click handler
    * @returns {HTMLButtonElement} Button element
    */
-  function createStyledButton(emoji, label, tooltip, accentColor, onClick) {
-    const { borderColor, borderSize, background, color, padding, fontSize, borderRadius, gap } = BUTTON_STYLES.panel;
+  async function createStyledButton(emoji, label, tooltip, accentColor, onClick) {
+    const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
+
+    const { borderSize, padding, fontSize, borderRadius, gap } = BUTTON_STYLES.panel;
 
     const button = document.createElement('button');
     button.title = tooltip;
-    button.style.cssText = `
-      width: 100%;
-      padding: ${padding};
-      border: ${borderSize}px solid ${borderColor};
-      border-radius: ${borderRadius}px;
-      background: ${background};
-      color: ${color};
-      font-weight: 500;
-      font-size: ${fontSize}px;
-      cursor: pointer;
-      transition: all ${TIMINGS.buttonTransition}ms ease;
-      display: flex;
-      align-items: center;
-      gap: ${gap}px;
-      line-height: 1.3;
-    `;
+
+    // Different styling for default theme
+    if (settings.amoledTheme) {
+      button.style.cssText = `
+        width: 100%;
+        padding: ${padding};
+        border: ${borderSize}px solid ${BUTTON_STYLES.panel.borderColor};
+        border-radius: ${borderRadius}px;
+        background: ${BUTTON_STYLES.panel.background};
+        color: ${BUTTON_STYLES.panel.color};
+        font-weight: 500;
+        font-size: ${fontSize}px;
+        cursor: pointer;
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+        display: flex;
+        align-items: center;
+        gap: ${gap}px;
+        line-height: 1.3;
+      `;
+    } else {
+      // Default theme: keep same background as panel
+      button.style.cssText = `
+        width: 100%;
+        padding: ${padding};
+        border: ${borderSize}px solid rgba(0, 0, 0, 0.15);
+        border-radius: ${borderRadius}px;
+        background: rgba(255, 255, 255, 0.3);
+        color: #333333;
+        font-weight: 500;
+        font-size: ${fontSize}px;
+        cursor: pointer;
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+        display: flex;
+        align-items: center;
+        gap: ${gap}px;
+        line-height: 1.3;
+      `;
+    }
 
     const emojiSpan = document.createElement('span');
     emojiSpan.textContent = emoji;
@@ -124,15 +170,25 @@
     button.appendChild(labelSpan);
 
     button.onmouseover = () => {
-      button.style.borderColor = BUTTON_STYLES.panel.borderColorHover;
-      button.style.background = BUTTON_STYLES.panel.backgroundHover;
-      button.style.color = accentColor;
+      if (settings.amoledTheme) {
+        button.style.borderColor = BUTTON_STYLES.panel.borderColorHover;
+        button.style.background = BUTTON_STYLES.panel.backgroundHover;
+        button.style.color = accentColor;
+      } else {
+        button.style.borderColor = 'rgba(0, 0, 0, 0.25)';
+        button.style.background = 'rgba(255, 255, 255, 0.5)';
+      }
     };
 
     button.onmouseout = () => {
-      button.style.borderColor = BUTTON_STYLES.panel.borderColor;
-      button.style.background = BUTTON_STYLES.panel.background;
-      button.style.color = BUTTON_STYLES.panel.color;
+      if (settings.amoledTheme) {
+        button.style.borderColor = BUTTON_STYLES.panel.borderColor;
+        button.style.background = BUTTON_STYLES.panel.background;
+        button.style.color = BUTTON_STYLES.panel.color;
+      } else {
+        button.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+        button.style.background = 'rgba(255, 255, 255, 0.3)';
+      }
     };
 
     button.onclick = onClick;
@@ -148,7 +204,10 @@
    * @param {Object} styles - Style object with top, left/right, width, height
    * @returns {HTMLButtonElement} Button element
    */
-  function createCircularIconButton(svgPath, className, title, gradient, styles) {
+  async function createCircularIconButton(svgPath, className, title, gradient, styles) {
+    const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
+
     const button = document.createElement('button');
     button.className = className;
     button.innerHTML = `
@@ -158,37 +217,74 @@
     `;
     button.title = title;
 
-    button.style.cssText = `
-      position: absolute;
-      top: ${styles.top}px;
-      ${styles.left !== undefined ? `left: ${styles.left}px;` : ''}
-      ${styles.right !== undefined ? `right: ${styles.right}px;` : ''}
-      width: ${styles.width}px;
-      height: ${styles.height}px;
-      border-radius: 50%;
-      border: none;
-      background: ${gradient};
-      color: ${styles.color || '#00ff66'};
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-      transition: all ${TIMINGS.buttonTransition}ms ease;
-      opacity: 0;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      padding: 0;
-    `;
+    // Use different styling for default theme
+    if (settings.amoledTheme) {
+      button.style.cssText = `
+        position: absolute;
+        top: ${styles.top}px;
+        ${styles.left !== undefined ? `left: ${styles.left}px;` : ''}
+        ${styles.right !== undefined ? `right: ${styles.right}px;` : ''}
+        width: ${styles.width}px;
+        height: ${styles.height}px;
+        border-radius: 50%;
+        border: none;
+        background: ${gradient};
+        color: ${styles.color || '#00ff66'};
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+        opacity: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 0;
+      `;
+    } else {
+      // Default theme: white background with border and dark icons
+      button.style.cssText = `
+        position: absolute;
+        top: ${styles.top}px;
+        ${styles.left !== undefined ? `left: ${styles.left}px;` : ''}
+        ${styles.right !== undefined ? `right: ${styles.right}px;` : ''}
+        width: ${styles.width}px;
+        height: ${styles.height}px;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        background: rgba(255, 255, 255, 0.95);
+        color: #333333;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+        opacity: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 0;
+      `;
+    }
 
     button.onmouseover = () => {
       button.style.transform = 'scale(1.1)';
-      button.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.8)';
+      if (settings.amoledTheme) {
+        button.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.8)';
+      } else {
+        button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+        button.style.borderColor = theme.primary;
+      }
     };
 
     button.onmouseout = () => {
       button.style.transform = 'scale(1)';
-      button.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.6)';
+      if (settings.amoledTheme) {
+        button.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.6)';
+      } else {
+        button.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.2)';
+        button.style.borderColor = 'rgba(0, 0, 0, 0.2)';
+      }
     };
 
     return button;
@@ -274,8 +370,8 @@
    * Create download button for thumbnails
    * @returns {HTMLButtonElement} Download button
    */
-  function createDownloadButton() {
-    return createCircularIconButton(
+  async function createDownloadButton() {
+    return await createCircularIconButton(
       SVG_ICONS.download,
       CLASS_NAMES.thumbDownload,
       'Download full resolution',
@@ -288,8 +384,8 @@
    * Create full resolution button for thumbnails
    * @returns {HTMLButtonElement} Full resolution button
    */
-  function createFullResButton() {
-    return createCircularIconButton(
+  async function createFullResButton() {
+    return await createCircularIconButton(
       SVG_ICONS.zoomIn,
       CLASS_NAMES.thumbFullRes,
       'Load full resolution',
@@ -315,13 +411,13 @@
    * @param {HTMLImageElement} img - Thumbnail image
    * @param {HTMLAnchorElement} postLink - Post link element
    */
-  function setupThumbnailButtons(img, postLink) {
+  async function setupThumbnailButtons(img, postLink) {
     const { positionButtonsForMedia, createButtonHoverHandlers, attachButtonHoverHandlers } = window.R34Tools;
     const { createBadgeUpdater } = window.R34Tools;
 
     const wrapper = createThumbnailWrapper(img);
-    const downloadBtn = createDownloadButton();
-    const fullResBtn = createFullResButton();
+    const downloadBtn = await createDownloadButton();
+    const fullResBtn = await createFullResButton();
     const qualityBadge = createQualityBadge();
 
     wrapper.appendChild(downloadBtn);

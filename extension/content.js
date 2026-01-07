@@ -7,7 +7,8 @@
   // Import all dependencies from modules via global namespace
   const {
     COLORS, SELECTORS, PANEL_STYLES, AMOLED_THEME_RULES, COMPACT_HEADER_STYLES,
-    SVG_ICONS, TIMINGS, CLASS_NAMES, THUMBNAIL_SCALE_OPTIONS, BUTTON_STYLES
+    SVG_ICONS, TIMINGS, CLASS_NAMES, THUMBNAIL_SCALE_OPTIONS, BUTTON_STYLES,
+    getThemeColors
   } = window.R34Tools;
 
   const { settingsManager } = window.R34Tools;
@@ -55,23 +56,37 @@
   /**
    * Create sidebar control panel for post/view pages (download, save)
    */
-  function createViewPageControlsPanel() {
+  async function createViewPageControlsPanel() {
     if (!isPostPage()) return;
 
     const existingPanel = document.getElementById('r34-view-controls');
     if (existingPanel) return;
 
+    const settings = await settingsManager.getAll();
+
     const controlsPanel = document.createElement('div');
     controlsPanel.id = 'r34-view-controls';
-    controlsPanel.style.cssText = `
-      background: ${PANEL_STYLES.background};
-      border: ${PANEL_STYLES.border};
-      border-bottom: ${PANEL_STYLES.borderBottom};
-      padding: ${PANEL_STYLES.padding};
-      margin: ${PANEL_STYLES.margin};
-      border-radius: ${PANEL_STYLES.borderRadius};
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    `;
+
+    // Different styling for default theme
+    if (settings.amoledTheme) {
+      controlsPanel.style.cssText = `
+        background: ${PANEL_STYLES.background};
+        border: ${PANEL_STYLES.border};
+        border-bottom: ${PANEL_STYLES.borderBottom};
+        padding: ${PANEL_STYLES.padding};
+        margin: ${PANEL_STYLES.margin};
+        border-radius: ${PANEL_STYLES.borderRadius};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else {
+      controlsPanel.style.cssText = `
+        background: hsl(114, 56%, 77%);
+        border: none;
+        padding: ${PANEL_STYLES.padding};
+        margin: ${PANEL_STYLES.margin};
+        border-radius: ${PANEL_STYLES.borderRadius};
+      `;
+    }
 
     const buttonsContainer = document.createElement('div');
     buttonsContainer.style.cssText = `
@@ -81,7 +96,7 @@
     `;
 
     // Save button
-    buttonsContainer.appendChild(createStyledButton(
+    buttonsContainer.appendChild(await createStyledButton(
       '🔖',
       'Save Page',
       'Save page metadata (Ctrl+Shift+S)',
@@ -90,7 +105,7 @@
     ));
 
     // Download button
-    buttonsContainer.appendChild(createStyledButton(
+    buttonsContainer.appendChild(await createStyledButton(
       '⬇',
       'Download Media',
       'Download highest quality media (Ctrl+Q)',
@@ -119,23 +134,38 @@
   /**
    * Create extension controls panel in sidebar
    */
-  function createExtensionControlsPanel() {
+  async function createExtensionControlsPanel() {
     if (!isListPage()) return;
 
     const existingPanel = document.getElementById('r34-extension-controls');
     if (existingPanel) return;
 
+    const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
+
     const controlsPanel = document.createElement('div');
     controlsPanel.id = 'r34-extension-controls';
-    controlsPanel.style.cssText = `
-      background: ${PANEL_STYLES.background};
-      border: ${PANEL_STYLES.border};
-      border-bottom: ${PANEL_STYLES.borderBottom};
-      padding: ${PANEL_STYLES.padding};
-      margin: ${PANEL_STYLES.margin};
-      border-radius: ${PANEL_STYLES.borderRadius};
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    `;
+
+    // Different styling for default theme
+    if (settings.amoledTheme) {
+      controlsPanel.style.cssText = `
+        background: ${PANEL_STYLES.background};
+        border: ${PANEL_STYLES.border};
+        border-bottom: ${PANEL_STYLES.borderBottom};
+        padding: ${PANEL_STYLES.padding};
+        margin: ${PANEL_STYLES.margin};
+        border-radius: ${PANEL_STYLES.borderRadius};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `;
+    } else {
+      controlsPanel.style.cssText = `
+        background: hsl(114, 56%, 77%);
+        border: none;
+        padding: ${PANEL_STYLES.padding};
+        margin: ${PANEL_STYLES.margin};
+        border-radius: ${PANEL_STYLES.borderRadius};
+      `;
+    }
 
     const buttonsContainer = document.createElement('div');
     buttonsContainer.style.cssText = `
@@ -145,7 +175,7 @@
     `;
 
     // Add save page button
-    buttonsContainer.appendChild(createStyledButton(
+    buttonsContainer.appendChild(await createStyledButton(
       '🔖',
       'Save Page',
       'Save current page URL and metadata',
@@ -154,7 +184,7 @@
     ));
 
     // Add force max quality button
-    buttonsContainer.appendChild(createStyledButton(
+    buttonsContainer.appendChild(await createStyledButton(
       '⚡',
       'Force Max Quality',
       'Load highest quality for all visible images',
@@ -163,7 +193,7 @@
     ));
 
     // Add force load videos button
-    buttonsContainer.appendChild(createStyledButton(
+    buttonsContainer.appendChild(await createStyledButton(
       '▶',
       'Force Load Videos',
       'Load all videos on page',
@@ -182,7 +212,7 @@
     const scaleLabel = document.createElement('div');
     scaleLabel.textContent = 'Thumbnail Size:';
     scaleLabel.style.cssText = `
-      color: ${COLORS.accent.green};
+      color: ${settings.amoledTheme ? COLORS.accent.green : '#000000'};
       font-size: 11px;
       margin-bottom: 4px;
       font-weight: 600;
@@ -203,31 +233,61 @@
       scaleBtn.dataset.scale = option.value;
       scaleBtn.textContent = option.label;
       scaleBtn.title = `Set thumbnail scale to ${option.label}`;
-      scaleBtn.style.cssText = `
-        flex: 1;
-        min-width: 40px;
-        padding: 4px 6px;
-        border: 1px solid ${BUTTON_STYLES.panel.borderColor};
-        border-radius: 2px;
-        background: ${BUTTON_STYLES.panel.background};
-        color: ${BUTTON_STYLES.panel.color};
-        font-size: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all ${TIMINGS.buttonTransition}ms ease;
-      `;
+
+      // Match sidebar button styling
+      if (settings.amoledTheme) {
+        scaleBtn.style.cssText = `
+          flex: 1;
+          min-width: 40px;
+          padding: 4px 6px;
+          border: 1px solid ${BUTTON_STYLES.panel.borderColor};
+          border-radius: 2px;
+          background: ${BUTTON_STYLES.panel.background};
+          color: ${BUTTON_STYLES.panel.color};
+          font-size: 10px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all ${TIMINGS.buttonTransition}ms ease;
+        `;
+      } else {
+        scaleBtn.style.cssText = `
+          flex: 1;
+          min-width: 40px;
+          padding: 4px 6px;
+          border: 1px solid rgba(0, 0, 0, 0.15);
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.3);
+          color: #333333;
+          font-size: 10px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all ${TIMINGS.buttonTransition}ms ease;
+        `;
+      }
 
       scaleBtn.onmouseover = () => {
-        if (scaleBtn.style.background !== COLORS.accent.green) {
-          scaleBtn.style.borderColor = BUTTON_STYLES.panel.borderColorHover;
-          scaleBtn.style.background = BUTTON_STYLES.panel.backgroundHover;
+        // Don't change hover state if button is active
+        if (!scaleBtn.classList.contains('r34-scale-active')) {
+          if (settings.amoledTheme) {
+            scaleBtn.style.borderColor = BUTTON_STYLES.panel.borderColorHover;
+            scaleBtn.style.background = BUTTON_STYLES.panel.backgroundHover;
+          } else {
+            scaleBtn.style.borderColor = 'rgba(0, 0, 0, 0.25)';
+            scaleBtn.style.background = 'rgba(255, 255, 255, 0.5)';
+          }
         }
       };
 
       scaleBtn.onmouseout = () => {
-        if (scaleBtn.style.background !== COLORS.accent.green) {
-          scaleBtn.style.borderColor = BUTTON_STYLES.panel.borderColor;
-          scaleBtn.style.background = BUTTON_STYLES.panel.background;
+        // Don't change hover state if button is active
+        if (!scaleBtn.classList.contains('r34-scale-active')) {
+          if (settings.amoledTheme) {
+            scaleBtn.style.borderColor = BUTTON_STYLES.panel.borderColor;
+            scaleBtn.style.background = BUTTON_STYLES.panel.background;
+          } else {
+            scaleBtn.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+            scaleBtn.style.background = 'rgba(255, 255, 255, 0.3)';
+          }
         }
       };
 
@@ -267,12 +327,15 @@
   /**
    * Create download button that appears on image/video hover
    */
-  function createImageDownloadButton() {
+  async function createImageDownloadButton() {
     const imageElement = safeQuerySelector(SELECTORS.imageElement);
     if (!imageElement) return;
 
     // Check if button already exists
     if (document.querySelector('.r34-post-download-btn')) return;
+
+    const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
 
     let wrapper = imageElement.parentElement;
     if (!wrapper.classList.contains('r34-tools-wrapper')) {
@@ -296,35 +359,70 @@
       </svg>
     `;
     downloadBtn.title = 'Download full resolution (Ctrl+Q)';
-    downloadBtn.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: linear-gradient(135deg, ${COLORS.accent.green} 0%, ${COLORS.accent.greenDark} 100%);
-      color: #000000;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      transition: all ${TIMINGS.buttonTransition}ms ease;
-      opacity: 0;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    `;
+
+    // Different styling for AMOLED vs default theme
+    if (settings.amoledTheme) {
+      downloadBtn.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        background: linear-gradient(135deg, ${theme.primary} 0%, ${theme.primaryDark} 100%);
+        color: ${theme.background};
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+        opacity: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      `;
+    } else {
+      downloadBtn.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid ${theme.border};
+        background: ${theme.backgroundLight};
+        color: ${theme.text};
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all ${TIMINGS.buttonTransition}ms ease;
+        opacity: 0;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      `;
+    }
 
     downloadBtn.onmouseover = () => {
       downloadBtn.style.transform = 'scale(1.1)';
-      downloadBtn.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.6)';
+      if (settings.amoledTheme) {
+        downloadBtn.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.6)';
+      } else {
+        downloadBtn.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+        downloadBtn.style.borderColor = theme.primary;
+      }
     };
 
     downloadBtn.onmouseout = () => {
       downloadBtn.style.transform = 'scale(1)';
-      downloadBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+      if (settings.amoledTheme) {
+        downloadBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.4)';
+      } else {
+        downloadBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+        downloadBtn.style.borderColor = theme.border;
+      }
     };
 
     downloadBtn.onclick = () => downloadFromCurrentPage();
@@ -461,6 +559,7 @@
    */
   async function updateScaleButtonHighlights(currentScale) {
     const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
     const scaleButtons = document.querySelectorAll('.r34-scale-btn');
 
     scaleButtons.forEach(btn => {
@@ -468,21 +567,21 @@
       if (btnScale === currentScale) {
         // Active button
         btn.classList.add('r34-scale-active');
-        if (settings.amoledTheme) {
-          btn.style.background = COLORS.accent.green;
-          btn.style.color = '#000000';
-          btn.style.borderColor = COLORS.accent.green;
-        } else {
-          btn.style.background = '#3399ff';
-          btn.style.color = '#ffffff';
-          btn.style.borderColor = '#3399ff';
-        }
+        btn.style.background = theme.primary;
+        btn.style.color = settings.amoledTheme ? theme.background : '#ffffff';
+        btn.style.borderColor = theme.primary;
       } else {
         // Inactive button
         btn.classList.remove('r34-scale-active');
-        btn.style.background = BUTTON_STYLES.panel.background;
-        btn.style.color = BUTTON_STYLES.panel.color;
-        btn.style.borderColor = BUTTON_STYLES.panel.borderColor;
+        if (settings.amoledTheme) {
+          btn.style.background = theme.buttonBg;
+          btn.style.color = theme.buttonText;
+          btn.style.borderColor = theme.buttonBorder;
+        } else {
+          btn.style.background = 'rgba(255, 255, 255, 0.3)';
+          btn.style.color = '#333333';
+          btn.style.borderColor = 'rgba(0, 0, 0, 0.15)';
+        }
       }
     });
   }
@@ -509,6 +608,8 @@
     const settings = await settingsManager.getAll();
     if (!settings.compactHeader) return;
 
+    const theme = getThemeColors(settings);
+
     const navbar = safeQuerySelector(SELECTORS.navbar);
     const subnavbar = safeQuerySelector(SELECTORS.subnavbar);
     const header = safeQuerySelector(SELECTORS.header);
@@ -523,10 +624,10 @@
       position: absolute;
       top: 10px;
       right: 10px;
-      background: ${COMPACT_HEADER_STYLES.panel.background};
-      border: 1px solid ${COMPACT_HEADER_STYLES.button.borderColorInactive};
+      background: ${theme.background};
+      border: 1px solid ${theme.border};
       border-radius: 3px;
-      color: ${COMPACT_HEADER_STYLES.panel.color};
+      color: ${theme.primary};
       font-size: 12px;
       width: 24px;
       height: 24px;
@@ -568,13 +669,13 @@
     };
 
     arrowBtn.onmouseover = () => {
-      arrowBtn.style.borderColor = COMPACT_HEADER_STYLES.button.borderColorActive;
-      arrowBtn.style.background = COMPACT_HEADER_STYLES.button.backgroundActive;
+      arrowBtn.style.borderColor = theme.primary;
+      arrowBtn.style.background = theme.backgroundLight;
     };
 
     arrowBtn.onmouseout = () => {
-      arrowBtn.style.borderColor = COMPACT_HEADER_STYLES.button.borderColorInactive;
-      arrowBtn.style.background = COMPACT_HEADER_STYLES.button.backgroundInactive;
+      arrowBtn.style.borderColor = theme.border;
+      arrowBtn.style.background = theme.background;
     };
   }
 
@@ -726,50 +827,6 @@
     const style = document.createElement('style');
     style.id = 'r34-default-theme';
     style.textContent = `
-      /* Extension controls panel */
-      #r34-extension-controls {
-        background: #f5f5f5 !important;
-        border: 1px solid #3399ff !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-      }
-
-      /* Panel buttons */
-      #r34-extension-controls button {
-        background: #ffffff !important;
-        color: #333333 !important;
-        border-color: #cccccc !important;
-      }
-
-      #r34-extension-controls button:hover {
-        background: #e8e8e8 !important;
-        border-color: #3399ff !important;
-        color: #3399ff !important;
-      }
-
-      /* Thumbnail size label */
-      #r34-extension-controls div[style*="color: rgb(0, 255, 102)"] {
-        color: #3399ff !important;
-      }
-
-      /* Scale buttons */
-      .r34-scale-btn {
-        background: #ffffff !important;
-        color: #333333 !important;
-        border-color: #cccccc !important;
-      }
-
-      .r34-scale-btn:hover {
-        background: #e8e8e8 !important;
-        border-color: #3399ff !important;
-      }
-
-      /* Active scale button */
-      .r34-scale-btn.r34-scale-active {
-        background: #3399ff !important;
-        color: #ffffff !important;
-        border-color: #3399ff !important;
-      }
-
       /* Floating post buttons */
       #r34-tools-floating-buttons button {
         background: #ffffff !important;
@@ -800,18 +857,6 @@
         color: #3399ff !important;
       }
 
-
-      /* Thumbnail circular buttons - make them more visible on light backgrounds */
-      .r34-thumb-download,
-      .r34-thumb-fullres {
-        opacity: 0.9 !important;
-      }
-
-      .r34-thumb-download:hover,
-      .r34-thumb-fullres:hover {
-        opacity: 1 !important;
-      }
-
       /* Quality badge on default theme */
       .r34-quality-badge {
         border: 1px solid #666666 !important;
@@ -837,7 +882,9 @@
   /**
    * Add save icons to tag links (for quick saving)
    */
-  function addSaveIconsToLinks() {
+  async function addSaveIconsToLinks() {
+    const settings = await settingsManager.getAll();
+    const theme = getThemeColors(settings);
     const tagLinks = safeQuerySelectorAll(SELECTORS.allTags);
 
     tagLinks.forEach(link => {
@@ -858,7 +905,7 @@
         transition: opacity ${TIMINGS.buttonTransition}ms;
         display: inline-block;
         vertical-align: middle;
-        color: ${COLORS.accent.green};
+        color: ${theme.primary};
       `;
 
       saveIcon.onmouseover = () => saveIcon.style.opacity = '1';
@@ -883,23 +930,23 @@
    * Add download and full-res buttons to all thumbnails
    * Refactored from 647 lines to ~40 lines
    */
-  function addThumbnailDownloadButtons() {
+  async function addThumbnailDownloadButtons() {
     const thumbnails = safeQuerySelectorAll(SELECTORS.thumbnails);
 
-    thumbnails.forEach(img => {
+    for (const img of thumbnails) {
       // Skip if already processed
-      if (img.parentElement.querySelector(`.${CLASS_NAMES.thumbDownload}`)) return;
+      if (img.parentElement.querySelector(`.${CLASS_NAMES.thumbDownload}`)) continue;
 
       const postLink = findPostLink(img);
-      if (!postLink) return;
+      if (!postLink) continue;
 
       // Setup buttons using ui-components module
-      const { wrapper, downloadBtn, fullResBtn, qualityBadge } = setupThumbnailButtons(img, postLink);
+      const { wrapper, downloadBtn, fullResBtn, qualityBadge } = await setupThumbnailButtons(img, postLink);
 
       // Attach click handlers using download-handler module
       downloadBtn.onclick = (e) => handleThumbnailDownloadClick(e, postLink.href);
       fullResBtn.onclick = (e) => handleThumbnailFullResClick(e, img, postLink.href, wrapper);
-    });
+    }
   }
 
   // =============================================================================
@@ -967,9 +1014,9 @@
    * Watch for new images added to the page
    */
   function watchForNewImages() {
-    const debouncedUpgrade = debounce(() => {
+    const debouncedUpgrade = debounce(async () => {
       upgradeToSampleQuality();
-      addThumbnailDownloadButtons();
+      await addThumbnailDownloadButtons();
       autoLoadVideoThumbnails();
     }, TIMINGS.mutationDebounce);
 
@@ -980,9 +1027,9 @@
     });
 
     // Also poll periodically for dynamic content
-    setInterval(() => {
+    setInterval(async () => {
       upgradeToSampleQuality();
-      addThumbnailDownloadButtons();
+      await addThumbnailDownloadButtons();
     }, TIMINGS.imageCheckInterval);
   }
 
@@ -1004,10 +1051,10 @@
     await duplicatePaginationToTop();
 
     // Create UI elements
-    createViewPageControlsPanel();
-    createExtensionControlsPanel();
-    createImageDownloadButton();
-    addSaveIconsToLinks();
+    await createViewPageControlsPanel();
+    await createExtensionControlsPanel();
+    await createImageDownloadButton();
+    await addSaveIconsToLinks();
 
     // Apply saved thumbnail scale
     const settings = await settingsManager.getAll();
@@ -1019,7 +1066,7 @@
     }
 
     // Setup thumbnail features
-    addThumbnailDownloadButtons();
+    await addThumbnailDownloadButtons();
     await upgradeToSampleQuality();
 
     // Watch for new content

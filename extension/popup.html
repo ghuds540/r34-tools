@@ -10,16 +10,60 @@
       padding: 0;
     }
 
+    /* AMOLED Theme Variables */
+    body.amoled-theme {
+      --bg-primary: #000000;
+      --bg-secondary: #1a1a1a;
+      --bg-tertiary: #0f0f0f;
+      --bg-hover: #2a2a2a;
+      --border-color: #1a1a1a;
+      --border-light: #2a2a2a;
+      --text-primary: #e0e0e0;
+      --text-secondary: #999;
+      --text-muted: #ccc;
+      --accent: #00ff66;
+      --accent-dark: #00cc52;
+      --header-bg: linear-gradient(135deg, #00ff66 0%, #00cc52 100%);
+      --header-text: #000;
+      --btn-bg: #1a1a1a;
+      --btn-text: #00ff66;
+      --btn-border: #2a2a2a;
+      --btn-hover-bg: #2a2a2a;
+      --btn-hover-border: #00ff66;
+    }
+
+    /* Default (Light) Theme Variables */
+    body.default-theme {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --bg-tertiary: #fafafa;
+      --bg-hover: #e8e8e8;
+      --border-color: #e0e0e0;
+      --border-light: #cccccc;
+      --text-primary: #333333;
+      --text-secondary: #666666;
+      --text-muted: #555555;
+      --accent: #3399ff;
+      --accent-dark: #2277dd;
+      --header-bg: linear-gradient(135deg, #3399ff 0%, #2277dd 100%);
+      --header-text: #ffffff;
+      --btn-bg: #ffffff;
+      --btn-text: #333333;
+      --btn-border: #cccccc;
+      --btn-hover-bg: #e8e8e8;
+      --btn-hover-border: #3399ff;
+    }
+
     body {
       width: 280px;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #000000;
-      color: #e0e0e0;
+      background: var(--bg-primary);
+      color: var(--text-primary);
     }
 
     .header {
-      background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%);
+      background: var(--header-bg);
       padding: 20px;
       text-align: center;
     }
@@ -27,7 +71,7 @@
     h2 {
       margin: 0;
       font-size: 18px;
-      color: #000;
+      color: var(--header-text);
       font-weight: 600;
     }
 
@@ -40,9 +84,9 @@
       width: 100%;
       padding: 14px;
       margin-bottom: 10px;
-      background: #1a1a1a;
-      color: #00ff66;
-      border: 1px solid #2a2a2a;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--btn-border);
       border-radius: 6px;
       font-size: 14px;
       font-weight: 500;
@@ -51,8 +95,8 @@
     }
 
     .action-btn:hover {
-      background: #2a2a2a;
-      border-color: #00ff66;
+      background: var(--btn-hover-bg);
+      border-color: var(--btn-hover-border);
       transform: translateY(-1px);
     }
 
@@ -61,14 +105,14 @@
     }
 
     .action-btn.secondary {
-      background: #0f0f0f;
-      color: #999;
-      border-color: #1a1a1a;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border-color: var(--border-color);
     }
 
     .action-btn.secondary:hover {
-      background: #1a1a1a;
-      color: #ccc;
+      background: var(--bg-secondary);
+      color: var(--text-muted);
     }
 
     .status {
@@ -81,15 +125,15 @@
     }
 
     .status.success {
-      background: #0f2f1a;
-      color: #00ff66;
-      border: 1px solid #1a4a2a;
+      background: var(--bg-tertiary);
+      color: var(--accent);
+      border: 1px solid var(--border-light);
     }
 
     .status.error {
-      background: #2f0f0f;
+      background: var(--bg-tertiary);
       color: #ff6666;
-      border: 1px solid #4a1a1a;
+      border: 1px solid var(--border-light);
     }
   </style>
 </head>

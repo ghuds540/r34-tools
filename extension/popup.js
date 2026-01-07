@@ -1,7 +1,21 @@
 // Popup script for quick actions
 // Enhanced with loading states and better error handling
 
-document.addEventListener('DOMContentLoaded', () => {
+// Apply theme to popup based on AMOLED setting
+async function applyPopupTheme() {
+  const settings = await browser.storage.local.get({ amoledTheme: true });
+
+  if (settings.amoledTheme) {
+    document.body.classList.add('amoled-theme');
+    document.body.classList.remove('default-theme');
+  } else {
+    document.body.classList.add('default-theme');
+    document.body.classList.remove('amoled-theme');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await applyPopupTheme();
   document.getElementById('downloadBtn').addEventListener('click', downloadMedia);
   document.getElementById('savePageBtn').addEventListener('click', savePage);
   document.getElementById('settingsBtn').addEventListener('click', openSettings);

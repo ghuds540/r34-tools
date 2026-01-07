@@ -153,9 +153,10 @@
    * @param {string} videoUrl - Video source URL
    * @param {string} imgStyles - CSS styles from original image
    * @param {boolean} autoplay - Whether to autoplay video
+   * @param {string} postUrl - Post page URL (optional, for click navigation)
    * @returns {HTMLVideoElement} Video element
    */
-  function createVideoElement(videoUrl, imgStyles, autoplay = false) {
+  function createVideoElement(videoUrl, imgStyles, autoplay = false, postUrl = null) {
     const video = document.createElement('video');
     video.src = videoUrl;
     video.controls = true;
@@ -172,6 +173,23 @@
     video.style.width = 'auto';
     video.style.height = 'auto';
     video.style.display = 'block';
+
+    // Add click handler to navigate to post page (except when clicking controls)
+    if (postUrl) {
+      video.style.cursor = 'pointer';
+      video.addEventListener('click', (e) => {
+        // Don't navigate if clicking on video controls
+        const rect = video.getBoundingClientRect();
+        const clickY = e.clientY - rect.top;
+        const videoHeight = rect.height;
+        const controlsHeight = 40; // Approximate height of video controls
+
+        // If click is not in the controls area, navigate to post
+        if (clickY < (videoHeight - controlsHeight)) {
+          window.location.href = postUrl;
+        }
+      });
+    }
 
     return video;
   }
@@ -244,7 +262,7 @@
     const videoUrl = await getVideoUrl(img, postUrl, postId);
 
     if (videoUrl) {
-      const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos);
+      const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl);
       replaceImageWithVideo(img, video, wrapper);
       showNotification('Video loaded', 'success');
       return true;
@@ -259,10 +277,11 @@
    * @param {HTMLImageElement} img - Thumbnail image
    * @param {string} videoUrl - Video URL
    * @param {Object} settings - Extension settings
+   * @param {string} postUrl - Post page URL (optional, for click navigation)
    */
-  async function embedVideoInThumbnail(img, videoUrl, settings) {
+  async function embedVideoInThumbnail(img, videoUrl, settings, postUrl = null) {
     const wrapper = img.closest(`.${CLASS_NAMES.thumbWrapper}`);
-    const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos);
+    const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl);
 
     img.parentNode.replaceChild(video, img);
     console.log('[R34 Tools] Replaced thumbnail with video player');
@@ -313,7 +332,7 @@
 
     // Embed video if found
     if (videoUrl) {
-      await embedVideoInThumbnail(img, videoUrl, settings);
+      await embedVideoInThumbnail(img, videoUrl, settings, postLink.href);
     } else {
       console.log('[R34 Tools] Could not find video URL for thumbnail');
     }

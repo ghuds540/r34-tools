@@ -284,6 +284,97 @@
     }
   };
 
+  // AMOLED theme colors (pure black + green accents)
+  const AMOLED_THEME_COLORS = {
+    // Backgrounds
+    background: '#000000',
+    backgroundLight: '#1a1a1a',
+    backgroundHover: '#2a2a2a',
+
+    // Borders
+    border: '#333333',
+    borderLight: '#2a2a2a',
+    borderHover: '#00ff66',
+
+    // Text
+    text: '#ffffff',
+    textMuted: '#999999',
+    textDim: '#666666',
+
+    // Accents
+    primary: '#00ff66',
+    primaryDark: '#00cc52',
+    secondary: '#66b3ff',
+    error: '#ff6666',
+
+    // Buttons
+    buttonBg: '#1a1a1a',
+    buttonBgHover: '#2a2a2a',
+    buttonText: '#00ff66',
+    buttonTextHover: '#00ff66',
+    buttonBorder: '#00ff66',
+
+    // Notifications
+    notificationSuccessBg: '#0f2f1a',
+    notificationSuccessText: '#00ff66',
+    notificationSuccessBorder: '#1a4a2a',
+    notificationErrorBg: '#2f0f0f',
+    notificationErrorText: '#ff6666',
+    notificationErrorBorder: '#4a1a1a',
+    notificationInfoBg: '#0f2f1a',
+    notificationInfoText: '#00ff66',
+    notificationInfoBorder: '#1a4a2a'
+  };
+
+  // Default theme colors (light backgrounds + blue accents)
+  const DEFAULT_THEME_COLORS = {
+    // Backgrounds
+    background: '#f5f5f5',
+    backgroundLight: '#ffffff',
+    backgroundHover: '#e8e8e8',
+
+    // Borders
+    border: '#cccccc',
+    borderLight: '#dddddd',
+    borderHover: '#3399ff',
+
+    // Text
+    text: '#333333',
+    textMuted: '#666666',
+    textDim: '#999999',
+
+    // Accents
+    primary: '#3399ff',
+    primaryDark: '#2277dd',
+    secondary: '#66b3ff',
+    error: '#dd3333',
+
+    // Buttons
+    buttonBg: '#ffffff',
+    buttonBgHover: '#e8e8e8',
+    buttonText: '#333333',
+    buttonTextHover: '#3399ff',
+    buttonBorder: '#cccccc',
+
+    // Notifications
+    notificationSuccessBg: '#e8f5e9',
+    notificationSuccessText: '#2e7d32',
+    notificationSuccessBorder: '#a5d6a7',
+    notificationErrorBg: '#ffebee',
+    notificationErrorText: '#c62828',
+    notificationErrorBorder: '#ef9a9a',
+    notificationInfoBg: '#e3f2fd',
+    notificationInfoText: '#1976d2',
+    notificationInfoBorder: '#90caf9'
+  };
+
+  // Get theme colors based on settings
+  function getThemeColors(settings) {
+    return settings && settings.amoledTheme
+      ? AMOLED_THEME_COLORS
+      : DEFAULT_THEME_COLORS;
+  }
+
   // CSS class names used by extension
   const CLASS_NAMES = {
     thumbWrapper: 'r34-thumb-wrapper',
@@ -323,5 +414,8 @@
   window.R34Tools.COMPACT_HEADER_STYLES = COMPACT_HEADER_STYLES;
   window.R34Tools.CLASS_NAMES = CLASS_NAMES;
   window.R34Tools.SVG_ICONS = SVG_ICONS;
+  window.R34Tools.AMOLED_THEME_COLORS = AMOLED_THEME_COLORS;
+  window.R34Tools.DEFAULT_THEME_COLORS = DEFAULT_THEME_COLORS;
+  window.R34Tools.getThemeColors = getThemeColors;
 
 })();
