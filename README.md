@@ -51,6 +51,4 @@ npm run build
 - Override pagination to load more results at once
 - Seen/hidden post filter to avoid seeing things already reviewed (requires host integration)
 - pull from pool of rule34 mascot to replace sidebar one
-- code refactor
 - stash integration with API and host
-- scaling

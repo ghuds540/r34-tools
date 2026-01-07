@@ -53,47 +53,67 @@
   // =============================================================================
 
   /**
-   * Create floating buttons for post pages (download, save)
+   * Create sidebar control panel for post/view pages (download, save)
    */
-  function createFloatingButtons() {
+  function createViewPageControlsPanel() {
     if (!isPostPage()) return;
 
-    const existingPanel = document.getElementById('r34-tools-floating-buttons');
+    const existingPanel = document.getElementById('r34-view-controls');
     if (existingPanel) return;
 
-    const panel = document.createElement('div');
-    panel.id = 'r34-tools-floating-buttons';
-    panel.style.cssText = `
-      position: fixed;
-      top: 60px;
-      right: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 9998;
+    const controlsPanel = document.createElement('div');
+    controlsPanel.id = 'r34-view-controls';
+    controlsPanel.style.cssText = `
+      background: ${PANEL_STYLES.background};
+      border: ${PANEL_STYLES.border};
+      border-bottom: ${PANEL_STYLES.borderBottom};
+      padding: ${PANEL_STYLES.padding};
+      margin: ${PANEL_STYLES.margin};
+      border-radius: ${PANEL_STYLES.borderRadius};
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     `;
 
-    // Download button
-    const downloadBtn = createStyledButton(
-      '⬇',
-      'Download',
-      'Download highest quality media (Ctrl+Q)',
-      COLORS.accent.green,
-      () => downloadFromCurrentPage()
-    );
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: ${PANEL_STYLES.gap};
+    `;
 
     // Save button
-    const saveBtn = createStyledButton(
+    buttonsContainer.appendChild(createStyledButton(
       '🔖',
       'Save Page',
       'Save page metadata (Ctrl+Shift+S)',
-      COLORS.accent.blue,
+      COLORS.accent.green,
       () => savePageData()
-    );
+    ));
 
-    panel.appendChild(downloadBtn);
-    panel.appendChild(saveBtn);
-    document.body.appendChild(panel);
+    // Download button
+    buttonsContainer.appendChild(createStyledButton(
+      '⬇',
+      'Download Media',
+      'Download highest quality media (Ctrl+Q)',
+      COLORS.accent.green,
+      () => downloadFromCurrentPage()
+    ));
+
+    controlsPanel.appendChild(buttonsContainer);
+
+    // Insert panel into sidebar
+    const sidebar = safeQuerySelector(SELECTORS.sidebar);
+
+    if (sidebar) {
+      sidebar.insertBefore(controlsPanel, sidebar.firstChild);
+    } else {
+      // Fixed position fallback if no sidebar found
+      controlsPanel.style.position = 'fixed';
+      controlsPanel.style.top = '10px';
+      controlsPanel.style.left = '10px';
+      controlsPanel.style.width = '200px';
+      controlsPanel.style.zIndex = '9999';
+      document.body.appendChild(controlsPanel);
+    }
   }
 
   /**
@@ -483,14 +503,11 @@
 
   /**
    * Apply compact header mode (hide navbar/header)
-   * Restored to simpler pre-refactor version
+   * Works on both list and view pages
    */
   async function applyCompactHeader() {
     const settings = await settingsManager.getAll();
     if (!settings.compactHeader) return;
-
-    // Only show on list pages
-    if (!isListPage()) return;
 
     const navbar = safeQuerySelector(SELECTORS.navbar);
     const subnavbar = safeQuerySelector(SELECTORS.subnavbar);
@@ -688,6 +705,9 @@
       .awesomplete li { background: #000000 !important; color: #ffffff !important; }
       .awesomplete li:hover, .awesomplete li[aria-selected="true"] { background: #1a1a1a !important; }
       .awesomplete mark { background: #00ff66 !important; color: #000000 !important; }
+      .${CLASS_NAMES.saveLinkIcon} { color: #00ff66 !important; }
+      .${CLASS_NAMES.saveLinkIcon} svg { stroke: #00ff66 !important; }
+      div.status-notice { background: #000000 !important; border-color: #333333 !important; color: #00ff66 !important; }
     `;
 
     document.head.appendChild(style);
@@ -984,7 +1004,7 @@
     await duplicatePaginationToTop();
 
     // Create UI elements
-    createFloatingButtons();
+    createViewPageControlsPanel();
     createExtensionControlsPanel();
     createImageDownloadButton();
     addSaveIconsToLinks();
