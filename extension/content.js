@@ -1197,8 +1197,8 @@
     const style = document.createElement('style');
     style.id = 'r34-theater-mode';
     style.textContent = `
-      /* Theater mode - scale video/image to fill screen space */
-      
+      /* Theater mode - scale video/image to fill screen space (POST PAGES ONLY) */
+
       /* Remove max-width constraint on video container */
       #gelcomVideoContainer,
       #fluid_video_wrapper_gelcomVideoPlayer {
@@ -1207,9 +1207,12 @@
       }
 
       /* Scale video element to fill vertical space (slightly reduced to show controls) */
+      /* IMPORTANT: Scope to post page containers to avoid affecting thumbnail videos */
       #gelcomVideoPlayer,
       #image,
-      video {
+      #post-view video,
+      .flexi video,
+      #content > .content video {
         max-height: 90vh !important;
         height: 90vh !important;
         width: auto !important;
@@ -1217,8 +1220,8 @@
         object-fit: contain !important;
       }
 
-      /* Make flexi container fill width and center content */
-      .flexi {
+      /* Make flexi container fill width and center content (POST PAGES ONLY) */
+      #post-view .flexi {
         max-width: 100% !important;
         width: 100% !important;
         display: flex !important;

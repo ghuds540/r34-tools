@@ -18,5 +18,14 @@ long game:
 
 small easy fixes:
 - in extension popup dont show downloads unless on rule34.xxx in relevant apage
+- cleanup the layout of the extension options page, some things like auto pause should be in the same section as auto play videos on post pages
 
 small features:
+- settings icon in top bar or sidebar to bring to extension settings
+- hide tag search previous/next
+  - add keyboard shortcuts for them
+- force always view original (private browsing makes you reset usually)
+- download whole page (needs 429 retry first)
+
+medium/large features:
+- tiktok
