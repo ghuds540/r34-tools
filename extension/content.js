@@ -240,6 +240,9 @@ async function handleSavePage() {
   }
 }
 
+// Track active notifications for stacking
+const activeNotifications = [];
+
 // Show notification on page
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
@@ -259,16 +262,24 @@ function showNotification(message, type = 'info') {
     borderColor = '#1a4a2a';
   }
 
+  // Calculate vertical position based on existing notifications
+  let topPosition = 50; // Start below header button
+  activeNotifications.forEach(notif => {
+    if (notif && notif.offsetHeight) {
+      topPosition += notif.offsetHeight + 10; // 10px gap between notifications
+    }
+  });
+
   notification.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: ${topPosition}px;
     right: 20px;
     padding: 14px 18px;
     background: ${bgColor};
     color: ${textColor};
     border: 1px solid ${borderColor};
     border-radius: 6px;
-    z-index: 10000;
+    z-index: 9999;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 14px;
     font-weight: 500;
@@ -277,30 +288,57 @@ function showNotification(message, type = 'info') {
     backdrop-filter: blur(10px);
     white-space: pre-line;
     line-height: 1.5;
+    transition: opacity 0.3s ease, transform 0.3s ease;
   `;
   notification.textContent = message;
 
   document.body.appendChild(notification);
+  activeNotifications.push(notification);
 
+  // Remove notification after delay
   setTimeout(() => {
-    notification.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     notification.style.opacity = '0';
     notification.style.transform = 'translateX(20px)';
-    setTimeout(() => notification.remove(), 300);
+    setTimeout(() => {
+      notification.remove();
+      // Remove from active notifications array
+      const index = activeNotifications.indexOf(notification);
+      if (index > -1) {
+        activeNotifications.splice(index, 1);
+      }
+      // Reposition remaining notifications
+      repositionNotifications();
+    }, 300);
   }, 3000);
+}
+
+// Reposition all active notifications after one is removed
+function repositionNotifications() {
+  let topPosition = 50;
+  activeNotifications.forEach(notif => {
+    if (notif && notif.offsetHeight) {
+      notif.style.top = topPosition + 'px';
+      topPosition += notif.offsetHeight + 10;
+    }
+  });
 }
 
 // Create action buttons on page
 function createFloatingButtons() {
   const isPostPage = window.location.href.includes('page=post&s=view');
+  const isListPage = window.location.href.includes('page=post&s=list');
 
   if (isPostPage) {
     // On post pages: download button appears on image hover
     createImageDownloadButton();
+    // Add save button on post pages
+    createSidebarSaveButton();
+  } else if (isListPage) {
+    // On list pages: add all sidebar buttons
+    createSidebarSaveButton();
+    createForceLoadButton();
+    createForceLoadVideosButton();
   }
-
-  // Always add save button in sidebar
-  createSidebarSaveButton();
 }
 
 // Create download button that appears on image/video hover
@@ -379,16 +417,17 @@ function createSidebarSaveButton() {
   saveBtn.title = 'Save page (Ctrl+Shift+S)';
   saveBtn.style.cssText = `
     width: 100%;
-    padding: 6px 10px;
-    margin-bottom: 8px;
+    padding: 2px 6px;
+    margin-bottom: 4px;
     border: 1px solid #2a2a2a;
-    border-radius: 4px;
+    border-radius: 2px;
     background: #1a1a1a;
     color: #00ff66;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 11px;
     cursor: pointer;
     transition: all 0.2s ease;
+    line-height: 1.4;
   `;
   saveBtn.onmouseover = () => {
     saveBtn.style.borderColor = '#00ff66';
@@ -419,6 +458,508 @@ function createSidebarSaveButton() {
   }
 }
 
+// Create force load highest quality button in sidebar
+function createForceLoadButton() {
+  const forceLoadBtn = document.createElement('button');
+  forceLoadBtn.id = 'r34-tools-force-load';
+  forceLoadBtn.textContent = '⚡ Force Max Quality';
+  forceLoadBtn.title = 'Load highest quality for all visible images';
+  forceLoadBtn.style.cssText = `
+    width: 100%;
+    padding: 2px 6px;
+    margin-bottom: 4px;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+    background: #1a1a1a;
+    color: #66b3ff;
+    font-weight: 600;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.4;
+  `;
+  forceLoadBtn.onmouseover = () => {
+    forceLoadBtn.style.borderColor = '#66b3ff';
+    forceLoadBtn.style.background = '#2a2a2a';
+  };
+  forceLoadBtn.onmouseout = () => {
+    forceLoadBtn.style.borderColor = '#2a2a2a';
+    forceLoadBtn.style.background = '#1a1a1a';
+  };
+  forceLoadBtn.onclick = () => forceLoadAllMaxQuality();
+
+  // Try to find sidebar search area
+  const searchForm = document.querySelector('form[action*="list"]');
+  const sidebar = document.querySelector('#leftmenu, .sidebar, aside');
+
+  if (searchForm) {
+    searchForm.parentNode.insertBefore(forceLoadBtn, searchForm);
+  } else if (sidebar) {
+    sidebar.insertBefore(forceLoadBtn, sidebar.firstChild);
+  } else {
+    // Fallback: fixed position top-left
+    forceLoadBtn.style.position = 'fixed';
+    forceLoadBtn.style.top = '40px';
+    forceLoadBtn.style.left = '10px';
+    forceLoadBtn.style.width = 'auto';
+    forceLoadBtn.style.zIndex = '9999';
+    document.body.appendChild(forceLoadBtn);
+  }
+}
+
+// Create force load videos button in sidebar
+function createForceLoadVideosButton() {
+  const forceLoadVideosBtn = document.createElement('button');
+  forceLoadVideosBtn.id = 'r34-tools-force-load-videos';
+  forceLoadVideosBtn.textContent = '▶ Force Load Videos';
+  forceLoadVideosBtn.title = 'Load all videos on page';
+  forceLoadVideosBtn.style.cssText = `
+    width: 100%;
+    padding: 2px 6px;
+    margin-bottom: 4px;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+    background: #1a1a1a;
+    color: #ff66b3;
+    font-weight: 600;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    line-height: 1.4;
+  `;
+  forceLoadVideosBtn.onmouseover = () => {
+    forceLoadVideosBtn.style.borderColor = '#ff66b3';
+    forceLoadVideosBtn.style.background = '#2a2a2a';
+  };
+  forceLoadVideosBtn.onmouseout = () => {
+    forceLoadVideosBtn.style.borderColor = '#2a2a2a';
+    forceLoadVideosBtn.style.background = '#1a1a1a';
+  };
+  forceLoadVideosBtn.onclick = () => forceLoadAllVideos();
+
+  // Try to find sidebar search area
+  const searchForm = document.querySelector('form[action*="list"]');
+  const sidebar = document.querySelector('#leftmenu, .sidebar, aside');
+
+  if (searchForm) {
+    searchForm.parentNode.insertBefore(forceLoadVideosBtn, searchForm);
+  } else if (sidebar) {
+    sidebar.insertBefore(forceLoadVideosBtn, sidebar.firstChild);
+  } else {
+    // Fallback: fixed position top-left
+    forceLoadVideosBtn.style.position = 'fixed';
+    forceLoadVideosBtn.style.top = '70px';
+    forceLoadVideosBtn.style.left = '10px';
+    forceLoadVideosBtn.style.width = 'auto';
+    forceLoadVideosBtn.style.zIndex = '9999';
+    document.body.appendChild(forceLoadVideosBtn);
+  }
+}
+
+// Force load maximum quality for all thumbnails
+async function forceLoadAllMaxQuality() {
+  const settings = await browser.storage.local.get({
+    autoLoadVideoEmbeds: true,
+    autoStartEmbedVideos: true
+  });
+
+  const thumbnails = document.querySelectorAll('.thumb img, .thumbnail img, span.thumb img');
+
+  if (thumbnails.length === 0) {
+    showNotification('No thumbnails found on this page', 'info');
+    return;
+  }
+
+  showNotification(`Loading max quality for ${thumbnails.length} images...`, 'info');
+
+  let successCount = 0;
+  let failCount = 0;
+  let skippedVideos = 0;
+
+  for (const img of thumbnails) {
+    // Find the post link
+    let postLink = img.closest('a[href*="page=post"]');
+    if (!postLink) {
+      postLink = img.parentElement.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink && img.parentElement.parentElement) {
+      postLink = img.parentElement.parentElement.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink) {
+      failCount++;
+      continue;
+    }
+
+    const postUrl = postLink.href;
+
+    try {
+      // Fetch the post page
+      const response = await fetch(postUrl);
+      const html = await response.text();
+
+      // Parse HTML to extract image object
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      let fullResUrl = null;
+
+      // Method 1: Check if it's a video - try to replace with video element
+      const videoElement = doc.querySelector('video source, video');
+      if (videoElement) {
+        const videoUrl = videoElement.src || videoElement.querySelector('source')?.src;
+        if (videoUrl && settings.autoLoadVideoEmbeds) {
+          // Get the wrapper element that contains the buttons
+          const wrapper = img.closest('.r34-thumb-wrapper');
+
+          // Replace img with video element
+          const video = document.createElement('video');
+          video.src = videoUrl;
+          video.controls = true;
+          video.loop = true;
+          video.muted = true;
+          video.autoplay = settings.autoStartEmbedVideos;
+          video.style.cssText = img.style.cssText; // Copy img styles
+          video.style.maxWidth = '100%';
+          video.style.maxHeight = '100%';
+          video.style.width = 'auto';
+          video.style.height = 'auto';
+
+          // Replace the img element with video
+          img.parentNode.replaceChild(video, img);
+
+          // Re-attach download and full-res buttons if wrapper exists
+          if (wrapper) {
+            const downloadBtn = wrapper.querySelector('.r34-thumb-download');
+            const fullResBtn = wrapper.querySelector('.r34-thumb-fullres');
+            const qualityBadge = wrapper.querySelector('.r34-quality-badge');
+
+            // Update quality badge to show it's a video
+            if (qualityBadge) {
+              qualityBadge.textContent = 'V';
+              qualityBadge.style.background = 'rgba(102, 179, 255, 0.9)';
+              console.log('[R34 Tools] Updated quality badge to V');
+            } else {
+              console.log('[R34 Tools] Warning: No quality badge found for video');
+            }
+
+            // Update button positioning to work with video element
+            const positionButtonsForVideo = () => {
+              const containerRect = wrapper.getBoundingClientRect();
+              const videoRect = video.getBoundingClientRect();
+
+              const offsetTop = videoRect.top - containerRect.top;
+              const offsetLeft = videoRect.left - containerRect.left;
+              const offsetRight = containerRect.right - videoRect.right;
+
+              if (downloadBtn) {
+                downloadBtn.style.top = (offsetTop + 4) + 'px';
+                downloadBtn.style.left = (offsetLeft + 4) + 'px';
+              }
+              if (fullResBtn) {
+                fullResBtn.style.top = (offsetTop + 4) + 'px';
+                fullResBtn.style.left = (offsetLeft + 36) + 'px';
+              }
+              if (qualityBadge) {
+                qualityBadge.style.top = (offsetTop + 4) + 'px';
+                qualityBadge.style.right = (offsetRight + 4) + 'px';
+              }
+            };
+
+            positionButtonsForVideo();
+
+            // Re-add hover events for the video
+            const showButtons = () => {
+              positionButtonsForVideo();
+              if (downloadBtn) {
+                downloadBtn.style.opacity = '1';
+                downloadBtn.style.pointerEvents = 'auto';
+              }
+              if (fullResBtn) {
+                fullResBtn.style.opacity = '1';
+                fullResBtn.style.pointerEvents = 'auto';
+              }
+              if (qualityBadge) {
+                qualityBadge.style.opacity = '1';
+              }
+            };
+
+            const hideButtons = () => {
+              if (downloadBtn) {
+                downloadBtn.style.opacity = '0';
+                downloadBtn.style.pointerEvents = 'none';
+              }
+              if (fullResBtn) {
+                fullResBtn.style.opacity = '0';
+                fullResBtn.style.pointerEvents = 'none';
+              }
+              if (qualityBadge) {
+                qualityBadge.style.opacity = '0';
+              }
+            };
+
+            wrapper.removeEventListener('mouseenter', showButtons);
+            wrapper.removeEventListener('mouseleave', hideButtons);
+            wrapper.addEventListener('mouseenter', showButtons);
+            wrapper.addEventListener('mouseleave', hideButtons);
+            video.addEventListener('mouseenter', showButtons);
+          }
+
+          successCount++;
+        } else if (!settings.autoLoadVideoEmbeds) {
+          // Skip videos if auto-load is disabled
+          skippedVideos++;
+        } else {
+          // No video URL found
+          skippedVideos++;
+        }
+        continue;
+      }
+
+      // Method 2: Look for "Original image" link
+      const originalLink = doc.querySelector('a[href*="/images/"]');
+      if (originalLink && originalLink.textContent.includes('Original')) {
+        fullResUrl = originalLink.href;
+      }
+
+      // Method 3: Look for main image and upgrade to full resolution
+      if (!fullResUrl) {
+        const mainImage = doc.querySelector('#image, .flexi img, img[onclick*="note"]');
+        if (mainImage) {
+          let imgUrl = mainImage.src;
+          // Force highest quality
+          imgUrl = imgUrl.replace('/thumbnails/', '/images/');
+          imgUrl = imgUrl.replace('/samples/', '/images/');
+          imgUrl = imgUrl.replace('thumbnail_', '');
+          imgUrl = imgUrl.replace('sample_', '');
+          const url = new URL(imgUrl);
+          url.searchParams.delete('sample');
+          fullResUrl = url.toString();
+        }
+      }
+
+      if (fullResUrl) {
+        // Validate URL before replacing - test if it actually loads
+        try {
+          const testImg = new Image();
+          const loadPromise = new Promise((resolve, reject) => {
+            testImg.onload = () => resolve(true);
+            testImg.onerror = () => reject(false);
+          });
+          testImg.src = fullResUrl;
+
+          await loadPromise;
+
+          // URL is valid, replace the thumbnail
+          img.src = fullResUrl;
+          setImageQuality(img, 'F');
+          successCount++;
+        } catch {
+          // URL returned 404 or failed to load
+          console.log('Failed to load full res URL:', fullResUrl);
+          failCount++;
+        }
+      } else {
+        failCount++;
+      }
+
+      // Small delay to avoid overwhelming the server
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } catch (error) {
+      console.error('Error loading full res for image:', error);
+      failCount++;
+    }
+  }
+
+  let message = `Loaded: ${successCount} success, ${failCount} failed`;
+  if (skippedVideos > 0) {
+    message += `, ${skippedVideos} videos couldn't load`;
+  }
+
+  showNotification(message, 'success');
+}
+
+// Force load all videos on the page
+async function forceLoadAllVideos() {
+  const settings = await browser.storage.local.get({
+    autoStartEmbedVideos: true
+  });
+
+  const thumbnails = document.querySelectorAll('.thumb img, .thumbnail img, span.thumb img');
+
+  // Filter for video thumbnails only
+  const videoThumbnails = Array.from(thumbnails).filter(img => {
+    return img.classList.contains('webm-thumb') ||
+           img.classList.contains('webm') ||
+           (img.title && img.title.toLowerCase().includes(' video')) ||
+           (img.alt && img.alt.toLowerCase().includes(' video'));
+  });
+
+  if (videoThumbnails.length === 0) {
+    showNotification('No video thumbnails found on this page', 'info');
+    return;
+  }
+
+  showNotification(`Loading ${videoThumbnails.length} videos...`, 'info');
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const img of videoThumbnails) {
+    // Find the post link
+    let postLink = img.closest('a[href*="page=post"]');
+    if (!postLink) {
+      postLink = img.parentElement?.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink && img.parentElement?.parentElement) {
+      postLink = img.parentElement.parentElement.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink) {
+      failCount++;
+      continue;
+    }
+
+    const postUrl = postLink.href;
+    const postIdMatch = postUrl.match(/[?&]id=(\d+)/);
+    const postId = postIdMatch ? postIdMatch[1] : null;
+
+    try {
+      let videoUrl = null;
+
+      // Try direct URL construction
+      const thumbnailUrl = new URL(img.src);
+      const pathParts = thumbnailUrl.pathname.split('/');
+      const filename = pathParts[pathParts.length - 1].split('?')[0];
+      const hash = filename.replace('thumbnail_', '').replace('.jpg', '').replace('.png', '');
+      const directory = pathParts[pathParts.length - 2];
+
+      const cdnDomains = [
+        'https://api-cdn-us-mp4.rule34.xxx',
+        'https://ws-cdn-video.rule34.xxx',
+        'https://video-cdn3.rule34.xxx'
+      ];
+      const videoExtensions = ['.mp4', '.webm'];
+
+      for (const cdn of cdnDomains) {
+        for (const ext of videoExtensions) {
+          const testUrl = `${cdn}//images/${directory}/${hash}${ext}${postId ? '?' + postId : ''}`;
+          try {
+            const testResponse = await fetch(testUrl, { method: 'HEAD' });
+            if (testResponse.ok) {
+              videoUrl = testUrl;
+              break;
+            }
+          } catch (e) {
+            // Continue trying
+          }
+        }
+        if (videoUrl) break;
+      }
+
+      if (videoUrl) {
+        // Get the wrapper element
+        const wrapper = img.closest('.r34-thumb-wrapper');
+
+        // Replace img with video element
+        const video = document.createElement('video');
+        video.src = videoUrl;
+        video.controls = true;
+        video.loop = true;
+        video.muted = true;
+        video.autoplay = settings.autoStartEmbedVideos;
+        video.style.cssText = img.style.cssText;
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '100%';
+        video.style.width = 'auto';
+        video.style.height = 'auto';
+
+        img.parentNode.replaceChild(video, img);
+
+        // Re-attach buttons if wrapper exists
+        if (wrapper) {
+          const downloadBtn = wrapper.querySelector('.r34-thumb-download');
+          const fullResBtn = wrapper.querySelector('.r34-thumb-fullres');
+          const qualityBadge = wrapper.querySelector('.r34-quality-badge');
+
+          if (qualityBadge) {
+            qualityBadge.textContent = 'V';
+            qualityBadge.style.background = 'rgba(102, 179, 255, 0.9)';
+          }
+
+          const positionButtonsForVideo = () => {
+            const containerRect = wrapper.getBoundingClientRect();
+            const videoRect = video.getBoundingClientRect();
+            const offsetTop = videoRect.top - containerRect.top;
+            const offsetLeft = videoRect.left - containerRect.left;
+            const offsetRight = containerRect.right - videoRect.right;
+
+            if (downloadBtn) {
+              downloadBtn.style.top = (offsetTop + 4) + 'px';
+              downloadBtn.style.left = (offsetLeft + 4) + 'px';
+            }
+            if (fullResBtn) {
+              fullResBtn.style.top = (offsetTop + 4) + 'px';
+              fullResBtn.style.left = (offsetLeft + 36) + 'px';
+            }
+            if (qualityBadge) {
+              qualityBadge.style.top = (offsetTop + 4) + 'px';
+              qualityBadge.style.right = (offsetRight + 4) + 'px';
+            }
+          };
+
+          positionButtonsForVideo();
+
+          const showButtons = () => {
+            positionButtonsForVideo();
+            if (downloadBtn) {
+              downloadBtn.style.opacity = '1';
+              downloadBtn.style.pointerEvents = 'auto';
+            }
+            if (fullResBtn) {
+              fullResBtn.style.opacity = '1';
+              fullResBtn.style.pointerEvents = 'auto';
+            }
+            if (qualityBadge) {
+              qualityBadge.style.opacity = '1';
+            }
+          };
+
+          const hideButtons = () => {
+            if (downloadBtn) {
+              downloadBtn.style.opacity = '0';
+              downloadBtn.style.pointerEvents = 'none';
+            }
+            if (fullResBtn) {
+              fullResBtn.style.opacity = '0';
+              fullResBtn.style.pointerEvents = 'none';
+            }
+            if (qualityBadge) {
+              qualityBadge.style.opacity = '0';
+            }
+          };
+
+          wrapper.removeEventListener('mouseenter', showButtons);
+          wrapper.removeEventListener('mouseleave', hideButtons);
+          wrapper.addEventListener('mouseenter', showButtons);
+          wrapper.addEventListener('mouseleave', hideButtons);
+          video.addEventListener('mouseenter', showButtons);
+        }
+
+        successCount++;
+      } else {
+        failCount++;
+      }
+
+      // Small delay to avoid overwhelming the server
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } catch (error) {
+      console.error('[R34 Tools] Error loading video:', error);
+      failCount++;
+    }
+  }
+
+  showNotification(`Loaded ${successCount} videos, ${failCount} failed`, 'success');
+}
+
 // Remove right sidebar ads to give more room for posts
 function removeRightSidebar() {
   const rightSidebar = document.querySelector('.postListSidebarRight');
@@ -432,6 +973,10 @@ async function applyCompactHeader() {
   const settings = await browser.storage.local.get({ compactHeader: true });
 
   if (settings.compactHeader) {
+    // Only show on list pages
+    const isListPage = window.location.href.includes('page=post&s=list');
+    if (!isListPage) return;
+
     // Get header elements
     const navbar = document.querySelector('#navbar');
     const subnavbar = document.querySelector('#subnavbar');
@@ -444,7 +989,7 @@ async function applyCompactHeader() {
     arrowBtn.textContent = '▲';
     arrowBtn.title = 'Toggle header visibility';
     arrowBtn.style.cssText = `
-      position: fixed;
+      position: absolute;
       top: 10px;
       right: 10px;
       background: #1a1a1a;
@@ -740,7 +1285,12 @@ function addThumbnailDownloadButtons() {
         <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
       </svg>
     `;
-    fullResBtn.title = 'Load full resolution';
+    // Set title based on whether it's a video
+    const isVideo = img.classList.contains('webm-thumb') ||
+                    img.classList.contains('webm') ||
+                    (img.title && img.title.toLowerCase().includes(' video')) ||
+                    (img.alt && img.alt.toLowerCase().includes(' video'));
+    fullResBtn.title = isVideo ? 'Load video' : 'Load full resolution';
     fullResBtn.style.cssText = `
       position: absolute;
       top: 4px;
@@ -962,10 +1512,157 @@ function addThumbnailDownloadButtons() {
       e.stopPropagation();
 
       const postUrl = postLink.href;
-      showNotification('Loading full resolution...', 'info');
+
+      // Check if this is likely a video thumbnail
+      const isLikelyVideo = img.classList.contains('webm-thumb') ||
+                            img.classList.contains('webm') ||
+                            (img.title && img.title.toLowerCase().includes(' video')) ||
+                            (img.alt && img.alt.toLowerCase().includes(' video'));
+
+      if (isLikelyVideo) {
+        showNotification('Loading video...', 'info');
+      } else {
+        showNotification('Loading full resolution...', 'info');
+      }
 
       try {
-        // Fetch the post page
+        // Get video settings
+        const settings = await browser.storage.local.get({
+          autoLoadVideoEmbeds: true,
+          autoStartEmbedVideos: true
+        });
+
+        // For videos, try direct URL construction first
+        if (isLikelyVideo) {
+          const postIdMatch = postUrl.match(/[?&]id=(\d+)/);
+          const postId = postIdMatch ? postIdMatch[1] : null;
+
+          try {
+            const thumbnailUrl = new URL(img.src);
+            const pathParts = thumbnailUrl.pathname.split('/');
+            const filename = pathParts[pathParts.length - 1].split('?')[0];
+            const hash = filename.replace('thumbnail_', '').replace('.jpg', '').replace('.png', '');
+            const directory = pathParts[pathParts.length - 2];
+
+            const cdnDomains = [
+              'https://api-cdn-us-mp4.rule34.xxx',
+              'https://ws-cdn-video.rule34.xxx',
+              'https://video-cdn3.rule34.xxx'
+            ];
+            const videoExtensions = ['.mp4', '.webm'];
+
+            let videoUrl = null;
+            for (const cdn of cdnDomains) {
+              for (const ext of videoExtensions) {
+                const testUrl = `${cdn}//images/${directory}/${hash}${ext}${postId ? '?' + postId : ''}`;
+                try {
+                  const testResponse = await fetch(testUrl, { method: 'HEAD' });
+                  if (testResponse.ok) {
+                    videoUrl = testUrl;
+                    break;
+                  }
+                } catch (e) {
+                  // Continue trying
+                }
+              }
+              if (videoUrl) break;
+            }
+
+            if (videoUrl) {
+              // Successfully found video via direct URL
+              const wrapper = img.closest('.r34-thumb-wrapper');
+              const video = document.createElement('video');
+              video.src = videoUrl;
+              video.controls = true;
+              video.loop = true;
+              video.muted = true;
+              video.autoplay = settings.autoStartEmbedVideos;
+              video.style.cssText = img.style.cssText;
+              video.style.maxWidth = '100%';
+              video.style.maxHeight = '100%';
+              video.style.width = 'auto';
+              video.style.height = 'auto';
+
+              img.parentNode.replaceChild(video, img);
+
+              if (wrapper) {
+                const downloadBtn = wrapper.querySelector('.r34-thumb-download');
+                const fullResBtn = wrapper.querySelector('.r34-thumb-fullres');
+                const qualityBadge = wrapper.querySelector('.r34-quality-badge');
+
+                if (qualityBadge) {
+                  qualityBadge.textContent = 'V';
+                  qualityBadge.style.background = 'rgba(102, 179, 255, 0.9)';
+                }
+
+                const positionButtonsForVideo = () => {
+                  const containerRect = wrapper.getBoundingClientRect();
+                  const videoRect = video.getBoundingClientRect();
+                  const offsetTop = videoRect.top - containerRect.top;
+                  const offsetLeft = videoRect.left - containerRect.left;
+                  const offsetRight = containerRect.right - videoRect.right;
+
+                  if (downloadBtn) {
+                    downloadBtn.style.top = (offsetTop + 4) + 'px';
+                    downloadBtn.style.left = (offsetLeft + 4) + 'px';
+                  }
+                  if (fullResBtn) {
+                    fullResBtn.style.top = (offsetTop + 4) + 'px';
+                    fullResBtn.style.left = (offsetLeft + 36) + 'px';
+                  }
+                  if (qualityBadge) {
+                    qualityBadge.style.top = (offsetTop + 4) + 'px';
+                    qualityBadge.style.right = (offsetRight + 4) + 'px';
+                  }
+                };
+
+                positionButtonsForVideo();
+
+                const showButtons = () => {
+                  positionButtonsForVideo();
+                  if (downloadBtn) {
+                    downloadBtn.style.opacity = '1';
+                    downloadBtn.style.pointerEvents = 'auto';
+                  }
+                  if (fullResBtn) {
+                    fullResBtn.style.opacity = '1';
+                    fullResBtn.style.pointerEvents = 'auto';
+                  }
+                  if (qualityBadge) {
+                    qualityBadge.style.opacity = '1';
+                  }
+                };
+
+                const hideButtons = () => {
+                  if (downloadBtn) {
+                    downloadBtn.style.opacity = '0';
+                    downloadBtn.style.pointerEvents = 'none';
+                  }
+                  if (fullResBtn) {
+                    fullResBtn.style.opacity = '0';
+                    fullResBtn.style.pointerEvents = 'none';
+                  }
+                  if (qualityBadge) {
+                    qualityBadge.style.opacity = '0';
+                  }
+                };
+
+                wrapper.removeEventListener('mouseenter', showButtons);
+                wrapper.removeEventListener('mouseleave', hideButtons);
+                wrapper.addEventListener('mouseenter', showButtons);
+                wrapper.addEventListener('mouseleave', hideButtons);
+                video.addEventListener('mouseenter', showButtons);
+              }
+
+              showNotification('Video loaded', 'success');
+              return;
+            }
+          } catch (error) {
+            console.log('[R34 Tools] Direct video URL construction failed:', error);
+          }
+        }
+
+        // Fallback: Fetch the post page
         const response = await fetch(postUrl);
         const html = await response.text();
 
@@ -975,18 +1672,127 @@ function addThumbnailDownloadButtons() {
 
         let fullResUrl = null;
 
-        // Method 1: Look for video element
+        // Method 1: Check if it's a video - try to replace with video element
         const videoElement = doc.querySelector('video source, video');
         if (videoElement) {
-          fullResUrl = videoElement.src || videoElement.querySelector('source')?.src;
+          const videoUrl = videoElement.src || videoElement.querySelector('source')?.src;
+          if (videoUrl) {
+            // Get the wrapper element that contains the buttons
+            const wrapper = img.closest('.r34-thumb-wrapper');
+
+            // Replace img with video element
+            const video = document.createElement('video');
+            video.src = videoUrl;
+            video.controls = true;
+            video.loop = true;
+            video.muted = true;
+            video.autoplay = settings.autoStartEmbedVideos;
+            video.style.cssText = img.style.cssText; // Copy img styles
+            video.style.maxWidth = '100%';
+            video.style.maxHeight = '100%';
+            video.style.width = 'auto';
+            video.style.height = 'auto';
+
+            // Replace the img element with video
+            img.parentNode.replaceChild(video, img);
+
+            // Re-attach download and full-res buttons if wrapper exists
+            if (wrapper) {
+              // Keep the buttons functional over the video
+              const downloadBtn = wrapper.querySelector('.r34-thumb-download');
+              const fullResBtn = wrapper.querySelector('.r34-thumb-fullres');
+              const qualityBadge = wrapper.querySelector('.r34-quality-badge');
+
+              // Update quality badge
+              if (qualityBadge) {
+                qualityBadge.textContent = 'V';
+                qualityBadge.style.background = 'rgba(102, 179, 255, 0.9)';
+              }
+
+              // Update button positioning to work with video element
+              const positionButtonsForVideo = () => {
+                const containerRect = wrapper.getBoundingClientRect();
+                const videoRect = video.getBoundingClientRect();
+
+                // Calculate offset from container to actual video position
+                const offsetTop = videoRect.top - containerRect.top;
+                const offsetLeft = videoRect.left - containerRect.left;
+                const offsetRight = containerRect.right - videoRect.right;
+
+                // Position download button
+                if (downloadBtn) {
+                  downloadBtn.style.top = (offsetTop + 4) + 'px';
+                  downloadBtn.style.left = (offsetLeft + 4) + 'px';
+                }
+
+                // Position full res button
+                if (fullResBtn) {
+                  fullResBtn.style.top = (offsetTop + 4) + 'px';
+                  fullResBtn.style.left = (offsetLeft + 36) + 'px';
+                }
+
+                // Position quality badge
+                if (qualityBadge) {
+                  qualityBadge.style.top = (offsetTop + 4) + 'px';
+                  qualityBadge.style.right = (offsetRight + 4) + 'px';
+                }
+              };
+
+              // Position buttons immediately
+              positionButtonsForVideo();
+
+              // Re-add hover events for the video
+              const showButtons = () => {
+                positionButtonsForVideo();
+                if (downloadBtn) {
+                  downloadBtn.style.opacity = '1';
+                  downloadBtn.style.pointerEvents = 'auto';
+                }
+                if (fullResBtn) {
+                  fullResBtn.style.opacity = '1';
+                  fullResBtn.style.pointerEvents = 'auto';
+                }
+                if (qualityBadge) {
+                  qualityBadge.style.opacity = '1';
+                }
+              };
+
+              const hideButtons = () => {
+                if (downloadBtn) {
+                  downloadBtn.style.opacity = '0';
+                  downloadBtn.style.pointerEvents = 'none';
+                }
+                if (fullResBtn) {
+                  fullResBtn.style.opacity = '0';
+                  fullResBtn.style.pointerEvents = 'none';
+                }
+                if (qualityBadge) {
+                  qualityBadge.style.opacity = '0';
+                }
+              };
+
+              // Remove old event listeners (they reference the old img)
+              wrapper.removeEventListener('mouseenter', showButtons);
+              wrapper.removeEventListener('mouseleave', hideButtons);
+
+              // Add new event listeners for video
+              wrapper.addEventListener('mouseenter', showButtons);
+              wrapper.addEventListener('mouseleave', hideButtons);
+              video.addEventListener('mouseenter', showButtons);
+            }
+
+            showNotification('Video loaded', 'success');
+            return;
+          } else {
+            showNotification('Could not find video URL', 'error');
+            return;
+          }
         }
 
         // Method 2: Look for "Original image" link
-        if (!fullResUrl) {
-          const originalLink = doc.querySelector('a[href*="/images/"]');
-          if (originalLink && originalLink.textContent.includes('Original')) {
-            fullResUrl = originalLink.href;
-          }
+        const originalLink = doc.querySelector('a[href*="/images/"]');
+        if (originalLink && originalLink.textContent.includes('Original')) {
+          fullResUrl = originalLink.href;
         }
 
         // Method 3: Look for main image and upgrade to full resolution
@@ -1010,10 +1816,24 @@ function addThumbnailDownloadButtons() {
           return;
         }
 
-        // Replace the thumbnail image src with full resolution
-        img.src = fullResUrl;
-        setImageQuality(img, 'F');
-        showNotification('Full resolution loaded', 'success');
+        // Validate URL before replacing - test if it actually loads
+        try {
+          const testImg = new Image();
+          const loadPromise = new Promise((resolve, reject) => {
+            testImg.onload = () => resolve(true);
+            testImg.onerror = () => reject(false);
+          });
+          testImg.src = fullResUrl;
+
+          await loadPromise;
+
+          // URL is valid, replace the thumbnail
+          img.src = fullResUrl;
+          setImageQuality(img, 'F');
+          showNotification('Full resolution loaded', 'success');
+        } catch {
+          showNotification('Full resolution URL returned 404', 'error');
+        }
       } catch (error) {
         showNotification(`Error: ${error.message}`, 'error');
       }
@@ -1022,7 +1842,8 @@ function addThumbnailDownloadButtons() {
 }
 
 // Track which images we've already processed to avoid reprocessing
-const processedImages = new WeakSet();
+const processedImages = new WeakSet(); // For quality upgrades
+const processedVideos = new WeakSet(); // Separate tracking for video loading
 // Track quality level for each image
 const imageQuality = new WeakMap();
 // Track badge update functions for each image
@@ -1035,6 +1856,293 @@ function setImageQuality(img, quality) {
   if (updater) {
     updater();
   }
+}
+
+// Track if video loading is already running to prevent concurrent runs
+let isLoadingVideos = false;
+// Track which POST IDs we've already checked to avoid duplicate fetches
+const checkedPostIds = new Set();
+
+// Auto-load video thumbnails into embed players
+async function autoLoadVideoThumbnails() {
+  // Prevent concurrent runs
+  if (isLoadingVideos) return;
+
+  const settings = await browser.storage.local.get({
+    autoLoadVideoEmbeds: true,
+    autoStartEmbedVideos: true
+  });
+
+  if (!settings.autoLoadVideoEmbeds) {
+    return;
+  }
+
+  const images = document.querySelectorAll('.thumb img, .thumbnail img, span.thumb img');
+  console.log('[R34 Tools] Total images on page:', images.length);
+
+  // Use separate tracking for videos - don't use processedImages
+  const unprocessedImages = Array.from(images).filter(img => !processedVideos.has(img));
+  console.log('[R34 Tools] Already checked for videos:', images.length - unprocessedImages.length);
+
+  // If no new images to process, skip silently
+  if (unprocessedImages.length === 0) {
+    console.log('[R34 Tools] No new images to check for videos');
+    return;
+  }
+
+  console.log('[R34 Tools] Found', unprocessedImages.length, 'new thumbnails to check for videos');
+  isLoadingVideos = true;
+
+  // Process only unprocessed images
+  for (const img of unprocessedImages) {
+    // Mark as processed for VIDEO checking (separate from quality upgrade tracking)
+    processedVideos.add(img);
+
+    // Check if thumbnail indicates it's a video (webm-thumb class or "video" in tags)
+    const isVideo = img.classList.contains('webm-thumb') ||
+                    img.classList.contains('webm') ||
+                    (img.title && img.title.toLowerCase().includes(' video')) ||
+                    (img.alt && img.alt.toLowerCase().includes(' video'));
+
+    if (!isVideo) {
+      // Not a video thumbnail, skip it
+      continue;
+    }
+
+    console.log('[R34 Tools] Found video thumbnail:', img.src);
+
+    // Find the post link
+    let postLink = img.closest('a[href*="page=post"]');
+    if (!postLink) {
+      postLink = img.parentElement?.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink && img.parentElement?.parentElement) {
+      postLink = img.parentElement.parentElement.querySelector('a[href*="page=post"]');
+    }
+    if (!postLink) {
+      console.log('[R34 Tools] No post link found for image, skipping');
+      continue;
+    }
+
+    const postUrl = postLink.href;
+
+    // Extract post ID
+    const postIdMatch = postUrl.match(/[?&]id=(\d+)/);
+    const postId = postIdMatch ? postIdMatch[1] : null;
+
+    if (postId && checkedPostIds.has(postId)) {
+      console.log('[R34 Tools] Post', postId, 'already checked, skipping duplicate');
+      continue;
+    }
+
+    if (postId) {
+      checkedPostIds.add(postId);
+    }
+
+    try {
+      let videoUrl = null;
+
+      // Try to construct video URL directly from thumbnail URL
+      try {
+        const thumbnailUrl = new URL(img.src);
+        const pathParts = thumbnailUrl.pathname.split('/');
+        const filename = pathParts[pathParts.length - 1].split('?')[0];
+
+        // Extract hash from thumbnail filename (remove thumbnail_ prefix)
+        const hash = filename.replace('thumbnail_', '').replace('.jpg', '').replace('.png', '');
+        const directory = pathParts[pathParts.length - 2];
+
+        // Try multiple CDN domains and extensions
+        const cdnDomains = [
+          'https://api-cdn-us-mp4.rule34.xxx',
+          'https://ws-cdn-video.rule34.xxx',
+          'https://video-cdn3.rule34.xxx'
+        ];
+        const videoExtensions = ['.mp4', '.webm'];
+
+        console.log('[R34 Tools] Constructing video URL for hash:', hash);
+
+        // Try each combination
+        for (const cdn of cdnDomains) {
+          for (const ext of videoExtensions) {
+            const testUrl = `${cdn}//images/${directory}/${hash}${ext}${postId ? '?' + postId : ''}`;
+
+            try {
+              // Test if video URL is valid with HEAD request
+              const testResponse = await fetch(testUrl, { method: 'HEAD' });
+              if (testResponse.ok) {
+                videoUrl = testUrl;
+                console.log('[R34 Tools] Found working video URL:', videoUrl);
+                break;
+              }
+            } catch (e) {
+              // Continue trying other URLs
+            }
+          }
+          if (videoUrl) break;
+        }
+      } catch (error) {
+        console.log('[R34 Tools] Error constructing video URL:', error);
+      }
+
+      // Fallback: fetch the post page if direct URL construction failed
+      if (!videoUrl) {
+        console.log('[R34 Tools] Direct URL failed, fetching post page for:', postId);
+        try {
+          const response = await fetch(postUrl);
+          const html = await response.text();
+
+          console.log('[R34 Tools] Fetched HTML length:', html.length, 'bytes');
+
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+
+          // Try multiple methods to detect video from post page
+          // Method 1: Look for video tags
+          const videoTag = doc.querySelector('video');
+          const videoSource = doc.querySelector('video source');
+
+          // Method 2: Look for video URLs in the HTML content (for embeds)
+          const videoUrlMatch = html.match(/https?:\/\/[^"'\s]+\.(mp4|webm|mov)[^"'\s]*/i);
+
+          console.log('[R34 Tools] Post page check:', {
+            postId: postId || 'unknown',
+            hasVideoTag: !!videoTag,
+            hasVideoSource: !!videoSource,
+            hasVideoUrlInHtml: !!videoUrlMatch
+          });
+
+          // Extract video URL using priority order
+          if (videoSource && videoSource.src) {
+            videoUrl = videoSource.src;
+            console.log('[R34 Tools] Found video from <source> tag:', videoUrl);
+          } else if (videoTag && videoTag.src) {
+            videoUrl = videoTag.src;
+            console.log('[R34 Tools] Found video from <video> tag:', videoUrl);
+          } else if (videoTag) {
+            // Try to find source inside video tag
+            const source = videoTag.querySelector('source');
+            if (source && source.src) {
+              videoUrl = source.src;
+              console.log('[R34 Tools] Found video from <video><source>:', videoUrl);
+            }
+          } else if (videoUrlMatch) {
+            videoUrl = videoUrlMatch[0];
+            console.log('[R34 Tools] Found video from HTML content:', videoUrl);
+          }
+        } catch (error) {
+          console.error('[R34 Tools] Error fetching post page:', error);
+        }
+      }
+
+      if (videoUrl) {
+        // Get the wrapper element
+        const wrapper = img.closest('.r34-thumb-wrapper');
+
+        // Create video element
+        const video = document.createElement('video');
+        video.src = videoUrl;
+        video.controls = true;
+        video.loop = true;
+        video.muted = true;
+        video.autoplay = settings.autoStartEmbedVideos;
+        video.style.cssText = img.style.cssText;
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '100%';
+        video.style.width = 'auto';
+        video.style.height = 'auto';
+
+        // Replace the img element with video
+        img.parentNode.replaceChild(video, img);
+        console.log('[R34 Tools] Replaced thumbnail with video player');
+
+        // Re-attach download and full-res buttons if wrapper exists
+        if (wrapper) {
+          const downloadBtn = wrapper.querySelector('.r34-thumb-download');
+          const fullResBtn = wrapper.querySelector('.r34-thumb-fullres');
+          const qualityBadge = wrapper.querySelector('.r34-quality-badge');
+
+          // Update quality badge to show it's a video
+          if (qualityBadge) {
+            qualityBadge.textContent = 'V';
+            qualityBadge.style.background = 'rgba(102, 179, 255, 0.9)';
+            console.log('[R34 Tools] Updated quality badge to V');
+          } else {
+            console.log('[R34 Tools] Warning: No quality badge found for video');
+          }
+
+          // Update button positioning
+          const positionButtonsForVideo = () => {
+            const containerRect = wrapper.getBoundingClientRect();
+            const videoRect = video.getBoundingClientRect();
+
+            const offsetTop = videoRect.top - containerRect.top;
+            const offsetLeft = videoRect.left - containerRect.left;
+            const offsetRight = containerRect.right - videoRect.right;
+
+            if (downloadBtn) {
+              downloadBtn.style.top = (offsetTop + 4) + 'px';
+              downloadBtn.style.left = (offsetLeft + 4) + 'px';
+            }
+            if (fullResBtn) {
+              fullResBtn.style.top = (offsetTop + 4) + 'px';
+              fullResBtn.style.left = (offsetLeft + 36) + 'px';
+            }
+            if (qualityBadge) {
+              qualityBadge.style.top = (offsetTop + 4) + 'px';
+              qualityBadge.style.right = (offsetRight + 4) + 'px';
+            }
+          };
+
+          positionButtonsForVideo();
+
+          // Re-add hover events for the video
+          const showButtons = () => {
+            positionButtonsForVideo();
+            if (downloadBtn) {
+              downloadBtn.style.opacity = '1';
+              downloadBtn.style.pointerEvents = 'auto';
+            }
+            if (fullResBtn) {
+              fullResBtn.style.opacity = '1';
+              fullResBtn.style.pointerEvents = 'auto';
+            }
+            if (qualityBadge) {
+              qualityBadge.style.opacity = '1';
+            }
+          };
+
+          const hideButtons = () => {
+            if (downloadBtn) {
+              downloadBtn.style.opacity = '0';
+              downloadBtn.style.pointerEvents = 'none';
+            }
+            if (fullResBtn) {
+              fullResBtn.style.opacity = '0';
+              fullResBtn.style.pointerEvents = 'none';
+            }
+            if (qualityBadge) {
+              qualityBadge.style.opacity = '0';
+            }
+          };
+
+          wrapper.removeEventListener('mouseenter', showButtons);
+          wrapper.removeEventListener('mouseleave', hideButtons);
+          wrapper.addEventListener('mouseenter', showButtons);
+          wrapper.addEventListener('mouseleave', hideButtons);
+          video.addEventListener('mouseenter', showButtons);
+        }
+      }
+
+      // Small delay to avoid overwhelming the server
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('[R34 Tools] Error auto-loading video:', error);
+    }
+  }
+
+  console.log('[R34 Tools] Finished processing thumbnails');
+  isLoadingVideos = false;
 }
 
 // Upgrade thumbnails to sample or full quality
@@ -1091,16 +2199,14 @@ async function upgradeToSampleQuality() {
             setImageQuality(img, 'F');
           };
           testFullRes.onerror = () => {
-            // Full res failed, try sample
-            console.log('Full resolution failed, trying sample:', fullResUrl);
+            // Full res failed, try sample (silently)
             const testSample = new Image();
             testSample.onload = () => {
               img.src = sampleUrl;
               setImageQuality(img, 'S');
             };
             testSample.onerror = () => {
-              // Sample failed too, keep original thumbnail
-              console.log('Sample also failed, keeping thumbnail:', sampleUrl);
+              // Sample failed too, keep original thumbnail (silently)
               setImageQuality(img, 'T');
             };
             testSample.src = sampleUrl;
@@ -1116,8 +2222,7 @@ async function upgradeToSampleQuality() {
             setImageQuality(img, 'S');
           };
           testImg.onerror = () => {
-            // If upgrade fails, keep original thumbnail
-            console.log('Failed to load sample:', sampleUrl);
+            // If upgrade fails, keep original thumbnail (silently - common for videos)
             setImageQuality(img, 'T');
           };
           testImg.src = sampleUrl;
@@ -1131,10 +2236,15 @@ async function upgradeToSampleQuality() {
 
 // Watch for dynamically loaded images
 function watchForNewImages() {
-  // Use MutationObserver for DOM changes
+  // Use MutationObserver for DOM changes - debounced
+  let mutationTimeout;
   const observer = new MutationObserver(() => {
-    upgradeToSampleQuality();
-    addThumbnailDownloadButtons();
+    clearTimeout(mutationTimeout);
+    mutationTimeout = setTimeout(() => {
+      upgradeToSampleQuality();
+      autoLoadVideoThumbnails();
+      addThumbnailDownloadButtons();
+    }, 500); // Debounce mutations
   });
 
   // Observe the content area for new images
@@ -1149,8 +2259,9 @@ function watchForNewImages() {
   // Also periodically check for new images (catch lazy-loaded images)
   setInterval(() => {
     upgradeToSampleQuality();
+    autoLoadVideoThumbnails();
     addThumbnailDownloadButtons();
-  }, 1000);
+  }, 3000); // Reduced from 1 second to 3 seconds
 
   // Trigger on scroll to catch lazy loading
   let scrollTimeout;
@@ -1158,6 +2269,7 @@ function watchForNewImages() {
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
       upgradeToSampleQuality();
+      autoLoadVideoThumbnails();
       addThumbnailDownloadButtons();
     }, 200);
   }, { passive: true });
@@ -1170,5 +2282,11 @@ applyAmoledTheme();
 upgradeToSampleQuality();
 createFloatingButtons();
 addSaveIconsToLinks();
-addThumbnailDownloadButtons();
+addThumbnailDownloadButtons(); // Must create buttons BEFORE loading videos
 watchForNewImages();
+
+// Delay initial video loading to ensure DOM is fully ready and buttons exist
+setTimeout(() => {
+  console.log('[R34 Tools] Starting initial video auto-load check...');
+  autoLoadVideoThumbnails();
+}, 2000); // 2 second delay to ensure page is loaded

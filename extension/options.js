@@ -19,7 +19,9 @@ async function loadSettings() {
     amoledTheme: true,
     compactHeader: true,
     highQualityPreviews: true,
-    alwaysUseFullResolution: false
+    alwaysUseFullResolution: false,
+    autoLoadVideoEmbeds: true,
+    autoStartEmbedVideos: true
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
@@ -27,6 +29,8 @@ async function loadSettings() {
   document.getElementById('compactHeader').checked = settings.compactHeader;
   document.getElementById('highQualityPreviews').checked = settings.highQualityPreviews;
   document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
+  document.getElementById('autoLoadVideoEmbeds').checked = settings.autoLoadVideoEmbeds;
+  document.getElementById('autoStartEmbedVideos').checked = settings.autoStartEmbedVideos;
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -82,6 +86,8 @@ function setupEventListeners() {
   document.getElementById('compactHeader').addEventListener('change', autoSaveSettings);
   document.getElementById('highQualityPreviews').addEventListener('change', autoSaveSettings);
   document.getElementById('alwaysUseFullResolution').addEventListener('change', autoSaveSettings);
+  document.getElementById('autoLoadVideoEmbeds').addEventListener('change', autoSaveSettings);
+  document.getElementById('autoStartEmbedVideos').addEventListener('change', autoSaveSettings);
 
   // Preview quality checkboxes - disable first when second is checked
   const highQualityCheckbox = document.getElementById('highQualityPreviews');
@@ -101,6 +107,26 @@ function setupEventListeners() {
   if (fullResCheckbox.checked) {
     highQualityCheckbox.disabled = true;
     highQualityCheckbox.parentElement.style.opacity = '0.5';
+  }
+
+  // Video embed checkboxes - disable autostart when auto load is unchecked
+  const autoLoadVideoCheckbox = document.getElementById('autoLoadVideoEmbeds');
+  const autoStartVideoCheckbox = document.getElementById('autoStartEmbedVideos');
+
+  autoLoadVideoCheckbox.addEventListener('change', () => {
+    if (!autoLoadVideoCheckbox.checked) {
+      autoStartVideoCheckbox.disabled = true;
+      autoStartVideoCheckbox.parentElement.style.opacity = '0.5';
+    } else {
+      autoStartVideoCheckbox.disabled = false;
+      autoStartVideoCheckbox.parentElement.style.opacity = '1';
+    }
+  });
+
+  // Set initial state
+  if (!autoLoadVideoCheckbox.checked) {
+    autoStartVideoCheckbox.disabled = true;
+    autoStartVideoCheckbox.parentElement.style.opacity = '0.5';
   }
 }
 
@@ -235,7 +261,9 @@ async function autoSaveSettings() {
     amoledTheme: document.getElementById('amoledTheme').checked,
     compactHeader: document.getElementById('compactHeader').checked,
     highQualityPreviews: document.getElementById('highQualityPreviews').checked,
-    alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked
+    alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked,
+    autoLoadVideoEmbeds: document.getElementById('autoLoadVideoEmbeds').checked,
+    autoStartEmbedVideos: document.getElementById('autoStartEmbedVideos').checked
   };
 
   await browser.storage.local.set(settings);
@@ -251,7 +279,9 @@ async function resetSettings() {
     amoledTheme: true,
     compactHeader: true,
     highQualityPreviews: true,
-    alwaysUseFullResolution: false
+    alwaysUseFullResolution: false,
+    autoLoadVideoEmbeds: true,
+    autoStartEmbedVideos: true
   };
 
   await browser.storage.local.set(defaults);

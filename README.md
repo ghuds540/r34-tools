@@ -16,6 +16,7 @@ Enable private browsing: `about:addons` → R34 Tools → Allow in Private Windo
 - **High-quality previews** - Upgrades thumbnails to sample quality for better image clarity (enabled by default)
   - Green download button on hover to download full resolution
   - Blue full-resolution button loads /images/ quality inline
+  - Videos auto-load into playable embed players (configurable)
 - **Smart filenames** - `r34_{id}_{hash}_{artists}.ext`
 - **JSON metadata** - Saves as `{timestamp}_r34.json` with URL, artists, post ID
 
@@ -28,6 +29,8 @@ Extension icon → Settings
 - Toggle compact header mode (hides header, moves logo to sidebar with toggle button)
 - Toggle high-quality previews (sample quality)
 - Toggle always use full resolution (overrides high-quality, slower but max quality)
+- Toggle auto-load videos into embed players
+- Toggle auto-start embed videos (requires auto-load enabled)
 
 ## Build
 
@@ -41,3 +44,5 @@ npm run build
 - Troubleshoot why not every image is showing in force full res (404s)
 - Override pagination to load more results at once
 - Seen/hidden post filter to avoid seeing things already reviewed (requires host integration)
+- optionally add page nav bar copy to top of page
+- pull from pool of rule34 mascot to replace sidebar one
