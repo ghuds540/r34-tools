@@ -841,27 +841,69 @@
       .${CLASS_NAMES.saveLinkIcon} svg { stroke: #00ff66 !important; }
       div.status-notice { background: #000000 !important; border-color: #333333 !important; color: #00ff66 !important; }
 
-      /* Tag type color coding with neon theme */
-      .tag-type-artist a, li[class*="tag-type-artist"] a { ${AMOLED_THEME_RULES.tagArtist} }
-      .tag-type-artist a:hover, li[class*="tag-type-artist"] a:hover { ${AMOLED_THEME_RULES.tagArtistHover} }
+      /* Tag type color coding with neon theme - works on both list and post pages */
+      .tag-type-artist a,
+      li[class*="tag-type-artist"] a,
+      ul li.tag-type-artist a,
+      #tag-sidebar .tag-type-artist a { ${AMOLED_THEME_RULES.tagArtist} }
+      .tag-type-artist a:hover,
+      li[class*="tag-type-artist"] a:hover,
+      ul li.tag-type-artist a:hover,
+      #tag-sidebar .tag-type-artist a:hover { ${AMOLED_THEME_RULES.tagArtistHover} }
 
-      .tag-type-character a, li[class*="tag-type-character"] a { ${AMOLED_THEME_RULES.tagCharacter} }
-      .tag-type-character a:hover, li[class*="tag-type-character"] a:hover { ${AMOLED_THEME_RULES.tagCharacterHover} }
+      .tag-type-character a,
+      li[class*="tag-type-character"] a,
+      ul li.tag-type-character a,
+      #tag-sidebar .tag-type-character a { ${AMOLED_THEME_RULES.tagCharacter} }
+      .tag-type-character a:hover,
+      li[class*="tag-type-character"] a:hover,
+      ul li.tag-type-character a:hover,
+      #tag-sidebar .tag-type-character a:hover { ${AMOLED_THEME_RULES.tagCharacterHover} }
 
-      .tag-type-copyright a, li[class*="tag-type-copyright"] a { ${AMOLED_THEME_RULES.tagCopyright} }
-      .tag-type-copyright a:hover, li[class*="tag-type-copyright"] a:hover { ${AMOLED_THEME_RULES.tagCopyrightHover} }
+      .tag-type-copyright a,
+      li[class*="tag-type-copyright"] a,
+      ul li.tag-type-copyright a,
+      #tag-sidebar .tag-type-copyright a { ${AMOLED_THEME_RULES.tagCopyright} }
+      .tag-type-copyright a:hover,
+      li[class*="tag-type-copyright"] a:hover,
+      ul li.tag-type-copyright a:hover,
+      #tag-sidebar .tag-type-copyright a:hover { ${AMOLED_THEME_RULES.tagCopyrightHover} }
 
-      .tag-type-metadata a, li[class*="tag-type-metadata"] a,
-      .tag-type-meta a, li[class*="tag-type-meta"] a { ${AMOLED_THEME_RULES.tagMeta} }
-      .tag-type-metadata a:hover, li[class*="tag-type-metadata"] a:hover,
-      .tag-type-meta a:hover, li[class*="tag-type-meta"] a:hover { ${AMOLED_THEME_RULES.tagMetaHover} }
+      .tag-type-metadata a,
+      .tag-type-meta a,
+      li[class*="tag-type-metadata"] a,
+      li[class*="tag-type-meta"] a,
+      ul li.tag-type-metadata a,
+      ul li.tag-type-meta a,
+      #tag-sidebar .tag-type-metadata a,
+      #tag-sidebar .tag-type-meta a { ${AMOLED_THEME_RULES.tagMeta} }
+      .tag-type-metadata a:hover,
+      .tag-type-meta a:hover,
+      li[class*="tag-type-metadata"] a:hover,
+      li[class*="tag-type-meta"] a:hover,
+      ul li.tag-type-metadata a:hover,
+      ul li.tag-type-meta a:hover,
+      #tag-sidebar .tag-type-metadata a:hover,
+      #tag-sidebar .tag-type-meta a:hover { ${AMOLED_THEME_RULES.tagMetaHover} }
 
-      .tag-type-species a, li[class*="tag-type-species"] a { ${AMOLED_THEME_RULES.tagSpecies} }
-      .tag-type-species a:hover, li[class*="tag-type-species"] a:hover { ${AMOLED_THEME_RULES.tagSpeciesHover} }
+      .tag-type-species a,
+      li[class*="tag-type-species"] a,
+      ul li.tag-type-species a,
+      #tag-sidebar .tag-type-species a { ${AMOLED_THEME_RULES.tagSpecies} }
+      .tag-type-species a:hover,
+      li[class*="tag-type-species"] a:hover,
+      ul li.tag-type-species a:hover,
+      #tag-sidebar .tag-type-species a:hover { ${AMOLED_THEME_RULES.tagSpeciesHover} }
 
-      .tag-type-general a, li[class*="tag-type-general"] a,
+      .tag-type-general a,
+      li[class*="tag-type-general"] a,
+      ul li.tag-type-general a,
+      #tag-sidebar .tag-type-general a,
       .tag a:not([class*="tag-type-"]) { ${AMOLED_THEME_RULES.tagGeneral} }
-      .tag-type-general a:hover, li[class*="tag-type-general"] a:hover,
+      .tag-type-general a:hover,
+      li[class*="tag-type-general"] a:hover,
+      ul li.tag-type-general a:hover,
+      #tag-sidebar .tag-type-general a:hover,
       .tag a:not([class*="tag-type-"]):hover { ${AMOLED_THEME_RULES.tagGeneralHover} }
     `;
 
@@ -940,7 +982,7 @@
 
     if (settings.hideTagWiki) {
       cssRules.push(`
-        /* Hide wiki/help (?) buttons */
+        /* Hide wiki/help (?) buttons - works on list and post pages */
         .tag-type-artist > a[href*="page=wiki"],
         .tag-type-character > a[href*="page=wiki"],
         .tag-type-copyright > a[href*="page=wiki"],
@@ -948,7 +990,9 @@
         .tag-type-metadata > a[href*="page=wiki"],
         .tag-type-meta > a[href*="page=wiki"],
         .tag-type-species > a[href*="page=wiki"],
-        li[class*="tag-type"] > a[href*="page=wiki"] {
+        li[class*="tag-type"] > a[href*="page=wiki"],
+        ul li[class*="tag-type"] > a[href*="page=wiki"],
+        #tag-sidebar li[class*="tag-type"] > a[href*="page=wiki"] {
           display: none !important;
         }
       `);
@@ -956,7 +1000,7 @@
 
     if (settings.hideTagAdd) {
       cssRules.push(`
-        /* Hide add (+) buttons - matches onclick with += " " */
+        /* Hide add (+) buttons - works on list and post pages */
         .tag-type-artist > a[onclick*='value += " "'],
         .tag-type-character > a[onclick*='value += " "'],
         .tag-type-copyright > a[onclick*='value += " "'],
@@ -964,7 +1008,9 @@
         .tag-type-metadata > a[onclick*='value += " "'],
         .tag-type-meta > a[onclick*='value += " "'],
         .tag-type-species > a[onclick*='value += " "'],
-        li[class*="tag-type"] > a[onclick*='value += " "'] {
+        li[class*="tag-type"] > a[onclick*='value += " "'],
+        ul li[class*="tag-type"] > a[onclick*='value += " "'],
+        #tag-sidebar li[class*="tag-type"] > a[onclick*='value += " "'] {
           display: none !important;
         }
       `);
@@ -972,7 +1018,7 @@
 
     if (settings.hideTagRemove) {
       cssRules.push(`
-        /* Hide remove (-) buttons - matches onclick with += " -" */
+        /* Hide remove (-) buttons - works on list and post pages */
         .tag-type-artist > a[onclick*='value += " -"'],
         .tag-type-character > a[onclick*='value += " -"'],
         .tag-type-copyright > a[onclick*='value += " -"'],
@@ -980,7 +1026,9 @@
         .tag-type-metadata > a[onclick*='value += " -"'],
         .tag-type-meta > a[onclick*='value += " -"'],
         .tag-type-species > a[onclick*='value += " -"'],
-        li[class*="tag-type"] > a[onclick*='value += " -"'] {
+        li[class*="tag-type"] > a[onclick*='value += " -"'],
+        ul li[class*="tag-type"] > a[onclick*='value += " -"'],
+        #tag-sidebar li[class*="tag-type"] > a[onclick*='value += " -"'] {
           display: none !important;
         }
       `);

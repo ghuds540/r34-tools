@@ -13,6 +13,9 @@
 - temporary session storage track bookmark to show if saved
 - toggleable text in bottom right of thumbnail that tells you dimensions of true underlying image (useful for side by side dups where you want to download hq one)
 
+- sound for success operation
+- ability to turn off/on sounds at fine grain
+
 long game:
 - visual sorting stuff (auto adds score:ascending, etc)
 - easily bookmark actual posts for later from hover
