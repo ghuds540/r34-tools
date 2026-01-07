@@ -427,6 +427,88 @@ function removeRightSidebar() {
   }
 }
 
+// Apply compact header mode
+async function applyCompactHeader() {
+  const settings = await browser.storage.local.get({ compactHeader: true });
+
+  if (settings.compactHeader) {
+    // Get header elements
+    const navbar = document.querySelector('#navbar');
+    const subnavbar = document.querySelector('#subnavbar');
+    const header = document.querySelector('#header, header');
+    const radios = document.querySelectorAll('.tradio, .tlabel');
+
+    // Create arrow button to toggle header visibility
+    const arrowBtn = document.createElement('button');
+    arrowBtn.id = 'r34-header-arrow';
+    arrowBtn.textContent = '▲';
+    arrowBtn.title = 'Toggle header visibility';
+    arrowBtn.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      color: #00ff66;
+      font-size: 12px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 10000;
+    `;
+
+    // Add button to page
+    document.body.appendChild(arrowBtn);
+
+    // Hide header elements by default
+    if (navbar) navbar.style.display = 'none';
+    if (subnavbar) subnavbar.style.display = 'none';
+    radios.forEach(el => el.style.display = 'none');
+
+    // Track header visibility state
+    let headerVisible = false;
+
+    // Toggle header visibility when arrow is clicked
+    arrowBtn.onclick = (e) => {
+      e.stopPropagation();
+      headerVisible = !headerVisible;
+
+      if (headerVisible) {
+        // Show header elements
+        if (navbar) navbar.style.display = '';
+        if (subnavbar) subnavbar.style.display = '';
+        radios.forEach(el => el.style.display = '');
+        arrowBtn.textContent = '▲';
+      } else {
+        // Hide header elements
+        if (navbar) navbar.style.display = 'none';
+        if (subnavbar) subnavbar.style.display = 'none';
+        radios.forEach(el => el.style.display = 'none');
+        arrowBtn.textContent = '▼';
+      }
+
+      // Rotate arrow
+      arrowBtn.style.transform = headerVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+    };
+
+    // Hover effects for arrow button
+    arrowBtn.onmouseover = () => {
+      arrowBtn.style.borderColor = '#00ff66';
+      arrowBtn.style.background = '#2a2a2a';
+    };
+    arrowBtn.onmouseout = () => {
+      arrowBtn.style.borderColor = '#2a2a2a';
+      arrowBtn.style.background = '#1a1a1a';
+    };
+  }
+}
+
 // Apply AMOLED theme if enabled
 async function applyAmoledTheme() {
   const settings = await browser.storage.local.get({ amoledTheme: true });
@@ -1083,6 +1165,7 @@ function watchForNewImages() {
 
 // Initialize when page loads
 removeRightSidebar();
+applyCompactHeader();
 applyAmoledTheme();
 upgradeToSampleQuality();
 createFloatingButtons();

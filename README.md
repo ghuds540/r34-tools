@@ -25,6 +25,7 @@ Extension icon → Settings
 - Configure keyboard shortcuts
 - Set download conflict behavior (overwrite/uniquify)
 - Toggle AMOLED theme
+- Toggle compact header mode (hides header, moves logo to sidebar with toggle button)
 - Toggle high-quality previews (sample quality)
 - Toggle always use full resolution (overrides high-quality, slower but max quality)
 
@@ -37,6 +38,6 @@ npm run build
 
 ## Future Ideas
 
-- troubleshoot why not ever image is showing in force full res (404s)
-- work on UI a bit
-  - hide top bars and move rule34 title and picture so only one vertical bar on left
+- Troubleshoot why not every image is showing in force full res (404s)
+- Override pagination to load more results at once
+- Seen/hidden post filter to avoid seeing things already reviewed (requires host integration)

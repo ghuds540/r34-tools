@@ -17,12 +17,14 @@ async function loadSettings() {
     downloadKey: '',
     savePageKey: '',
     amoledTheme: true,
+    compactHeader: true,
     highQualityPreviews: true,
     alwaysUseFullResolution: false
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
   document.getElementById('amoledTheme').checked = settings.amoledTheme;
+  document.getElementById('compactHeader').checked = settings.compactHeader;
   document.getElementById('highQualityPreviews').checked = settings.highQualityPreviews;
   document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
 
@@ -77,6 +79,7 @@ function setupEventListeners() {
   // Auto-save on change for all settings
   document.getElementById('conflictAction').addEventListener('change', autoSaveSettings);
   document.getElementById('amoledTheme').addEventListener('change', autoSaveSettings);
+  document.getElementById('compactHeader').addEventListener('change', autoSaveSettings);
   document.getElementById('highQualityPreviews').addEventListener('change', autoSaveSettings);
   document.getElementById('alwaysUseFullResolution').addEventListener('change', autoSaveSettings);
 
@@ -230,6 +233,7 @@ async function autoSaveSettings() {
   const settings = {
     conflictAction: document.getElementById('conflictAction').value,
     amoledTheme: document.getElementById('amoledTheme').checked,
+    compactHeader: document.getElementById('compactHeader').checked,
     highQualityPreviews: document.getElementById('highQualityPreviews').checked,
     alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked
   };
@@ -245,6 +249,7 @@ async function resetSettings() {
     downloadKey: '',
     savePageKey: '',
     amoledTheme: true,
+    compactHeader: true,
     highQualityPreviews: true,
     alwaysUseFullResolution: false
   };
