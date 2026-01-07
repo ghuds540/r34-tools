@@ -1,54 +1,46 @@
 # R34 Tools
 
-Firefox extension for rule34.xxx - download media, save pages, AMOLED dark theme.
+> Firefox extension for rule34.xxx with downloads, AMOLED theming, and quality upgrades
 
-## Install
+[![Firefox](https://img.shields.io/badge/Firefox-Manifest%20V2-orange.svg)](https://www.mozilla.org/firefox/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-`about:debugging` → Load Temporary Add-on → `extension/manifest.json`
+> [!WARNING]  
+> This plugin has been completely vibe coded to fit my own needs. If you choose to use this, you are doing so at your own risk.
 
-Enable private browsing: `about:addons` → R34 Tools → Allow in Private Windows
+---
 
 ## Features
 
-- **Sidebar Controls Panel** - Glowing green-bordered panel under search box with:
-  - 🔖 Save Page
-  - ⚡ Force Max Quality (loads full resolution for all images)
-  - ▶ Force Load Videos (loads all video thumbnails at once)
-- **Download media** with `Ctrl+Q` or hover buttons (post pages & thumbnails)
-- **Save pages** with `Ctrl+Shift+S` or sidebar button
-- **AMOLED dark theme** - Pure black backgrounds with green accents (enabled by default)
-- **High-quality previews** - Upgrades thumbnails to sample quality for better image clarity (enabled by default)
-  - Green download button on hover to download full resolution
-  - Blue "Load video" button for video thumbnails (no auto-load setting required)
-  - Blue "Load full resolution" button for images loads /images/ quality inline
-  - Videos can auto-load into playable embed players (configurable)
-- **Smart filenames** - `r34_{id}_{hash}_{artists}.ext`
-- **JSON metadata** - Saves as `{timestamp}_r34.json` with URL, artists, post ID
+- **📥 One-Click Downloads** - Download media with `Ctrl+Q` or hover buttons
+- **🎨 AMOLED Dark Theme** - Pure black (#000) with green (#00ff66) accents
+- **🖼️ Quality Upgrades** - Auto-upgrade thumbnails to sample/full resolution
+- **📺 Video Embeds** - Auto-load and play videos inline
+- **🔖 Save Pages** - Export metadata as JSON with `Ctrl+Shift+S`
+- **⚡ Batch Operations** - Force max quality or load all videos at once
+- **🎯 Compact Mode** - Hide header/navbar for distraction-free browsing
+- **📐 Thumbnail Scaling** - 1x to 2x size adjustments
 
-## Settings
+## Installation
 
-Extension icon → Settings
-- Configure keyboard shortcuts
-- Set download conflict behavior (overwrite/uniquify)
-- Toggle AMOLED theme
-- Toggle compact header mode (hides header, moves logo to sidebar with toggle button)
-- Toggle high-quality previews (sample quality)
-- Toggle always use full resolution (overrides high-quality, slower but max quality)
-- Toggle auto-load videos into embed players
-- Toggle auto-start embed videos (requires auto-load enabled)
+### Development
 
-## Build
+1. Open Firefox and navigate to `about:debugging`
+2. Click "Load Temporary Add-on"
+3. Select `extension/manifest.json`
+4. Enable private browsing: `about:addons` → R34 Tools → "Allow in Private Windows"
+
+### Build
 
 ```bash
 npm run build
 # Creates dist/r34-tools-v{version}.xpi
 ```
 
-## Future Ideas
+## License
 
-- fix ugly non AMOLED theme.
-- Troubleshoot why not every image is showing in force full res (404s)
-- Override pagination to load more results at once
-- Seen/hidden post filter to avoid seeing things already reviewed (requires host integration)
-- pull from pool of rule34 mascot to replace sidebar one
-- stash integration with API and host
+MIT License - see [LICENSE](LICENSE) file for details
+
+## Contributing
+
+Pull requests welcome.
