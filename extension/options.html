@@ -147,13 +147,44 @@
       </div>
 
       <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoPlayPostVideos">
+          <span>Auto-play videos on post pages</span>
+        </label>
+        <p class="help-text">Automatically start video playback when visiting a video post page</p>
+        
+        <div style="margin-left: 30px; margin-top: 10px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoUnmuteOnInteraction">
+            <span>Unmute on first page interaction</span>
+          </label>
+          <p class="help-text" style="margin-left: 0;">Automatically unmute when you click or press a key (only works with auto-play enabled)</p>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="autoPauseOnTabLeave">
+          <span>Auto-pause videos when leaving tab</span>
+        </label>
+        <p class="help-text">Pause video playback when switching to another tab or window</p>
+      </div>
+
+      <div class="setting-item">
+        <label>Default Video Volume</label>
+        <input type="range" id="defaultVideoVolume" min="0" max="100" step="1" class="volume-slider">
+        <span id="volumeValue" style="margin-left: 10px; font-weight: bold;">50%</span>
+        <p class="help-text">Set the default volume level for all videos (0-100%)</p>
+      </div>
+
+      <div class="setting-item">
         <label>Default Thumbnail Scale</label>
         <select id="thumbnailScale">
-          <option value="1.0">1x (Default)</option>
+          <option value="1" selected>1x (Default)</option>
           <option value="1.25">1.25x</option>
           <option value="1.5">1.5x</option>
           <option value="1.75">1.75x</option>
-          <option value="2.0">2x</option>
+          <option value="2">2x</option>
         </select>
         <p class="help-text">Default size for thumbnail previews on list pages</p>
       </div>

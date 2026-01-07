@@ -17,8 +17,6 @@ long game:
 - starred/hearted tags/artists,etc
 
 small easy fixes:
-- make default thumbnail scale dropdown actually have a default value selected
+- in extension popup dont show downloads unless on rule34.xxx in relevant apage
 
 small features:
-- when visiting post page for a video, start playing it immediately
-  - maybe also have options for default volume (R34 hard codes it to be low)

@@ -158,14 +158,16 @@
    * @param {boolean} autoplay - Whether to autoplay video
    * @param {string} postUrl - Post page URL (optional, for click navigation)
    * @param {number} maxAutoplay - Max number of videos to autoplay (-1 for unlimited)
+   * @param {number} volume - Default volume level (0.0 to 1.0)
    * @returns {HTMLVideoElement} Video element
    */
-  function createVideoElement(videoUrl, imgStyles, autoplay = false, postUrl = null, maxAutoplay = -1) {
+  function createVideoElement(videoUrl, imgStyles, autoplay = false, postUrl = null, maxAutoplay = -1, volume = 0.5) {
     const video = document.createElement('video');
     video.controls = true;
     video.loop = true;
     video.muted = true;
     video.preload = 'metadata'; // Ensure metadata is loaded for timeline
+    video.volume = volume; // Set default volume
     
     // Prevent FluidPlayer from hijacking our video element
     video.classList.add('r34-tools-video');
@@ -335,7 +337,7 @@
     const videoUrl = await getVideoUrl(img, postUrl, postId);
 
     if (videoUrl) {
-      const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos);
+      const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos, settings.defaultVideoVolume);
       replaceImageWithVideo(img, video, wrapper);
       showNotification('Video loaded', 'success');
       return true;
@@ -354,7 +356,7 @@
    */
   async function embedVideoInThumbnail(img, videoUrl, settings, postUrl = null) {
     const wrapper = img.closest(`.${CLASS_NAMES.thumbWrapper}`);
-    const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos);
+    const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos, settings.defaultVideoVolume);
 
     img.parentNode.replaceChild(video, img);
     

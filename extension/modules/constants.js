@@ -217,7 +217,11 @@
     hideTagAdd: false,
     hideTagRemove: false,
     hideTagBookmark: false,
-    showMediaDimensions: true
+    showMediaDimensions: true,
+    autoPlayPostVideos: false,
+    autoPauseOnTabLeave: false,
+    autoUnmuteOnInteraction: false,
+    defaultVideoVolume: 0.5
   };
 
   // Thumbnail scale options

@@ -1349,6 +1349,93 @@
   // =============================================================================
 
   /**
+   * Auto-play video on video post pages if setting is enabled
+   */
+  async function handleVideoPostAutoplay() {
+    const settings = await settingsManager.getAll();
+    if (!settings.autoPlayPostVideos) return;
+
+    // Check if we're on a video post page
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPostPage = urlParams.get('page') === 'post' && urlParams.get('s') === 'view';
+    if (!isPostPage) return;
+
+    // Wait for video player to be ready
+    const waitForVideo = setInterval(() => {
+      const videoPlayer = document.querySelector('#gelcomVideoPlayer, video');
+      if (videoPlayer) {
+        clearInterval(waitForVideo);
+        
+        // Set default volume from settings
+        videoPlayer.volume = settings.defaultVideoVolume;
+        
+        // Mute video first (required for auto-play in most browsers)
+        videoPlayer.muted = true;
+        
+        // Function to attempt playback
+        const attemptPlay = () => {
+          videoPlayer.play().then(() => {
+            console.log('[R34 Tools] Video auto-play started (muted)');
+            
+            // Unmute on first user interaction with the page (if enabled)
+            if (settings.autoUnmuteOnInteraction) {
+              const unmuteOnInteraction = () => {
+                videoPlayer.muted = false;
+                console.log('[R34 Tools] Video unmuted after user interaction at volume', videoPlayer.volume);
+              };
+              
+              document.addEventListener('click', unmuteOnInteraction, { once: true });
+              document.addEventListener('keydown', unmuteOnInteraction, { once: true });
+            }
+          }).catch(err => {
+            console.log('[R34 Tools] Auto-play prevented by browser:', err);
+          });
+        };
+        
+        // Wait for metadata to be loaded before attempting play
+        if (videoPlayer.readyState >= 1) {
+          attemptPlay();
+        } else {
+          videoPlayer.addEventListener('loadedmetadata', attemptPlay, { once: true });
+        }
+      }
+    }, 100);
+
+    // Stop checking after 5 seconds
+    setTimeout(() => clearInterval(waitForVideo), 5000);
+  }
+
+  /**
+   * Setup auto-pause when user leaves the tab
+   */
+  function setupVideoPauseOnTabLeave() {
+    document.addEventListener('visibilitychange', async () => {
+      const settings = await settingsManager.getAll();
+      if (!settings.autoPauseOnTabLeave) return;
+
+      const videoPlayer = document.querySelector('#gelcomVideoPlayer, video');
+      if (!videoPlayer) return;
+
+      if (document.hidden) {
+        // Tab is hidden, pause the video
+        if (!videoPlayer.paused) {
+          videoPlayer.pause();
+          // Mark that we paused it so we can resume it
+          videoPlayer.dataset.pausedByExtension = 'true';
+        }
+      } else {
+        // Tab is visible again, resume if we paused it
+        if (videoPlayer.dataset.pausedByExtension === 'true') {
+          videoPlayer.play().catch(err => {
+            console.log('[R34 Tools] Auto-resume prevented by browser:', err);
+          });
+          delete videoPlayer.dataset.pausedByExtension;
+        }
+      }
+    });
+  }
+
+  /**
    * Initialize extension features
    */
   async function init() {
@@ -1391,6 +1478,10 @@
     setTimeout(async () => {
       await autoLoadVideoThumbnails();
     }, TIMINGS.videoLoadDelay);
+
+    // Handle auto-play and auto-pause for video post pages
+    await handleVideoPostAutoplay();
+    setupVideoPauseOnTabLeave();
 
     console.log('[R34 Tools] Initialization complete');
   }

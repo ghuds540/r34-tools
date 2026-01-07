@@ -43,7 +43,11 @@ async function loadSettings() {
     autoStartEmbedVideos: true,
     maxAutoplayVideos: 5,
     thumbnailScale: 1.0,
-    showMediaDimensions: true
+    showMediaDimensions: true,
+    autoPlayPostVideos: false,
+    autoPauseOnTabLeave: false,
+    autoUnmuteOnInteraction: false,
+    defaultVideoVolume: 0.5
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
@@ -58,9 +62,14 @@ async function loadSettings() {
   document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
   document.getElementById('autoLoadVideoEmbeds').checked = settings.autoLoadVideoEmbeds;
   document.getElementById('autoStartEmbedVideos').checked = settings.autoStartEmbedVideos;
-  document.getElementById('maxAutoplayVideos').value = settings.maxAutoplayVideos.toString();
-  document.getElementById('thumbnailScale').value = settings.thumbnailScale.toString();
+  document.getElementById('maxAutoplayVideos').value = settings.maxAutoplayVideos;
+  document.getElementById('thumbnailScale').value = settings.thumbnailScale;
   document.getElementById('showMediaDimensions').checked = settings.showMediaDimensions;
+  document.getElementById('autoPlayPostVideos').checked = settings.autoPlayPostVideos;
+  document.getElementById('autoPauseOnTabLeave').checked = settings.autoPauseOnTabLeave;
+  document.getElementById('autoUnmuteOnInteraction').checked = settings.autoUnmuteOnInteraction;
+  document.getElementById('defaultVideoVolume').value = Math.round(settings.defaultVideoVolume * 100);
+  document.getElementById('volumeValue').textContent = Math.round(settings.defaultVideoVolume * 100) + '%';
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -129,6 +138,29 @@ function setupEventListeners() {
   document.getElementById('maxAutoplayVideos').addEventListener('change', autoSaveSettings);
   document.getElementById('thumbnailScale').addEventListener('change', autoSaveSettings);
   document.getElementById('showMediaDimensions').addEventListener('change', autoSaveSettings);
+  document.getElementById('autoPlayPostVideos').addEventListener('change', autoSaveSettings);
+  document.getElementById('autoPauseOnTabLeave').addEventListener('change', autoSaveSettings);
+  document.getElementById('autoUnmuteOnInteraction').addEventListener('change', autoSaveSettings);
+  
+  // Volume slider - update display and save
+  document.getElementById('defaultVideoVolume').addEventListener('input', (e) => {
+    const value = e.target.value;
+    document.getElementById('volumeValue').textContent = value + '%';
+    
+    // Update slider gradient for webkit browsers (Chrome, Edge, Safari)
+    const percent = value;
+    const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim();
+    const borderLight = getComputedStyle(document.body).getPropertyValue('--border-light').trim();
+    e.target.style.background = `linear-gradient(to right, ${accent} 0%, ${accent} ${percent}%, ${borderLight} ${percent}%, ${borderLight} 100%)`;
+  });
+  document.getElementById('defaultVideoVolume').addEventListener('change', autoSaveSettings);
+
+  // Set initial gradient on load
+  const volumeSlider = document.getElementById('defaultVideoVolume');
+  const initialValue = volumeSlider.value;
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim();
+  const borderLight = getComputedStyle(document.body).getPropertyValue('--border-light').trim();
+  volumeSlider.style.background = `linear-gradient(to right, ${accent} 0%, ${accent} ${initialValue}%, ${borderLight} ${initialValue}%, ${borderLight} 100%)`;
 
   // Preview quality checkboxes - disable first when second is checked
   const highQualityCheckbox = document.getElementById('highQualityPreviews');
@@ -328,7 +360,11 @@ async function autoSaveSettings() {
     autoStartEmbedVideos: document.getElementById('autoStartEmbedVideos').checked,
     maxAutoplayVideos: parseInt(document.getElementById('maxAutoplayVideos').value),
     thumbnailScale: parseFloat(document.getElementById('thumbnailScale').value),
-    showMediaDimensions: document.getElementById('showMediaDimensions').checked
+    showMediaDimensions: document.getElementById('showMediaDimensions').checked,
+    autoPlayPostVideos: document.getElementById('autoPlayPostVideos').checked,
+    autoPauseOnTabLeave: document.getElementById('autoPauseOnTabLeave').checked,
+    autoUnmuteOnInteraction: document.getElementById('autoUnmuteOnInteraction').checked,
+    defaultVideoVolume: parseInt(document.getElementById('defaultVideoVolume').value) / 100
   };
 
   await browser.storage.local.set(settings);
@@ -354,7 +390,11 @@ async function resetSettings() {
     autoStartEmbedVideos: true,
     maxAutoplayVideos: 5,
     thumbnailScale: 1.0,
-    showMediaDimensions: true
+    showMediaDimensions: true,
+    autoPlayPostVideos: false,
+    autoPauseOnTabLeave: false,
+    autoUnmuteOnInteraction: false,
+    defaultVideoVolume: 0.5
   };
 
   await browser.storage.local.set(defaults);
