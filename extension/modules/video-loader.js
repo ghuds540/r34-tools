@@ -216,6 +216,8 @@
       video.style.cursor = 'pointer';
 
       video.addEventListener('click', (e) => {
+        console.log('[R34 Tools] Video clicked, postUrl:', postUrl);
+
         // Check if clicking on video controls area
         const rect = video.getBoundingClientRect();
         const clickY = e.clientY - rect.top;
@@ -226,11 +228,16 @@
         const controlsHeight = 40;
         const isInControlsArea = clickY > (videoHeight - controlsHeight);
 
+        console.log('[R34 Tools] Click Y:', clickY, 'Height:', videoHeight, 'In controls:', isInControlsArea);
+
         // Navigate only if not clicking in controls area
         if (!isInControlsArea) {
-          // Prevent default to avoid any video element interactions
+          console.log('[R34 Tools] Navigating to:', postUrl);
+
+          // Prevent video play/pause but allow navigation
           e.preventDefault();
-          e.stopPropagation();
+
+          // Navigate to post page
           window.location.href = postUrl;
         }
       });
