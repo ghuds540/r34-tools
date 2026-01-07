@@ -525,24 +525,38 @@
       await settingsManager.set({ thumbnailScale: scale });
     }
 
-    // Apply CSS transform to all thumbnail containers
+    // Apply scaling by resizing containers directly (not using transform)
     const thumbnailContainers = document.querySelectorAll('.thumb, .thumbnail, span.thumb');
 
     thumbnailContainers.forEach(container => {
-      container.style.transform = `scale(${scale})`;
-      container.style.transformOrigin = 'top left';
-      container.style.display = 'inline-block';
-
-      // Adjust margin to prevent overlap when scaled
-      if (scale > 1.0) {
-        const baseMargin = 8; // Approximate base margin between thumbnails
-        const extraMargin = (scale - 1.0) * 100; // Extra space needed
-        container.style.marginRight = `${extraMargin}px`;
-        container.style.marginBottom = `${extraMargin}px`;
-      } else {
-        container.style.marginRight = '';
-        container.style.marginBottom = '';
+      // Store original dimensions on first scale operation
+      if (!container.dataset.originalWidth) {
+        const computedStyle = window.getComputedStyle(container);
+        container.dataset.originalWidth = parseFloat(computedStyle.width) || 150;
+        container.dataset.originalHeight = parseFloat(computedStyle.height) || 150;
       }
+
+      const originalWidth = parseFloat(container.dataset.originalWidth);
+      const originalHeight = parseFloat(container.dataset.originalHeight);
+
+      // Scale the actual width/height instead of using transform
+      // This makes containers take up proper space in layout
+      if (scale !== 1.0) {
+        container.style.width = `${originalWidth * scale}px`;
+        container.style.height = `${originalHeight * scale}px`;
+        container.style.display = 'inline-block';
+      } else {
+        // Reset to original dimensions
+        container.style.width = '';
+        container.style.height = '';
+        container.style.display = '';
+      }
+
+      // Remove any transform/margin hacks from previous implementation
+      container.style.transform = '';
+      container.style.transformOrigin = '';
+      container.style.marginRight = '';
+      container.style.marginBottom = '';
     });
 
     // Update button highlights
