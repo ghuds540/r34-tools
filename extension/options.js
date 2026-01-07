@@ -47,7 +47,10 @@ async function loadSettings() {
     autoPlayPostVideos: false,
     autoPauseOnTabLeave: false,
     autoUnmuteOnInteraction: false,
-    defaultVideoVolume: 0.5
+    defaultVideoVolume: 0.5,
+    theaterMode: false,
+    centerAlignContent: false,
+    centerAlignListContent: false
   });
 
   document.getElementById('conflictAction').value = settings.conflictAction;
@@ -70,6 +73,9 @@ async function loadSettings() {
   document.getElementById('autoUnmuteOnInteraction').checked = settings.autoUnmuteOnInteraction;
   document.getElementById('defaultVideoVolume').value = Math.round(settings.defaultVideoVolume * 100);
   document.getElementById('volumeValue').textContent = Math.round(settings.defaultVideoVolume * 100) + '%';
+  document.getElementById('theaterMode').checked = settings.theaterMode;
+  document.getElementById('centerAlignContent').checked = settings.centerAlignContent;
+  document.getElementById('centerAlignListContent').checked = settings.centerAlignListContent;
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -141,6 +147,9 @@ function setupEventListeners() {
   document.getElementById('autoPlayPostVideos').addEventListener('change', autoSaveSettings);
   document.getElementById('autoPauseOnTabLeave').addEventListener('change', autoSaveSettings);
   document.getElementById('autoUnmuteOnInteraction').addEventListener('change', autoSaveSettings);
+  document.getElementById('theaterMode').addEventListener('change', autoSaveSettings);
+  document.getElementById('centerAlignContent').addEventListener('change', autoSaveSettings);
+  document.getElementById('centerAlignListContent').addEventListener('change', autoSaveSettings);
   
   // Volume slider - update display and save
   document.getElementById('defaultVideoVolume').addEventListener('input', (e) => {
@@ -364,7 +373,10 @@ async function autoSaveSettings() {
     autoPlayPostVideos: document.getElementById('autoPlayPostVideos').checked,
     autoPauseOnTabLeave: document.getElementById('autoPauseOnTabLeave').checked,
     autoUnmuteOnInteraction: document.getElementById('autoUnmuteOnInteraction').checked,
-    defaultVideoVolume: parseInt(document.getElementById('defaultVideoVolume').value) / 100
+    defaultVideoVolume: parseInt(document.getElementById('defaultVideoVolume').value) / 100,
+    theaterMode: document.getElementById('theaterMode').checked,
+    centerAlignContent: document.getElementById('centerAlignContent').checked,
+    centerAlignListContent: document.getElementById('centerAlignListContent').checked
   };
 
   await browser.storage.local.set(settings);
@@ -394,7 +406,10 @@ async function resetSettings() {
     autoPlayPostVideos: false,
     autoPauseOnTabLeave: false,
     autoUnmuteOnInteraction: false,
-    defaultVideoVolume: 0.5
+    defaultVideoVolume: 0.5,
+    theaterMode: false,
+    centerAlignContent: false,
+    centerAlignListContent: false
   };
 
   await browser.storage.local.set(defaults);

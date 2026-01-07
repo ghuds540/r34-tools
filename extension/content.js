@@ -1174,6 +1174,243 @@
   }
 
   // =============================================================================
+  // THEATER MODE FOR VIDEO POSTS
+  // =============================================================================
+
+  /**
+   * Apply theater mode styling to scale video to fill vertical space
+   */
+  async function applyTheaterMode() {
+    const settings = await settingsManager.getAll();
+    if (!settings.theaterMode) return;
+    if (!isPostPage()) return;
+
+    if (document.getElementById('r34-theater-mode')) return;
+
+    // Remove the invisible right sidebar that blocks horizontal expansion
+    const rightSidebar = document.querySelector('.postViewSidebarRight, .postListSidebarRight');
+    if (rightSidebar) {
+      rightSidebar.style.display = 'none';
+      console.log('[R34 Tools] Right sidebar hidden for theater mode');
+    }
+
+    const style = document.createElement('style');
+    style.id = 'r34-theater-mode';
+    style.textContent = `
+      /* Theater mode - scale video/image to fill screen space */
+      
+      /* Remove max-width constraint on video container */
+      #gelcomVideoContainer,
+      #fluid_video_wrapper_gelcomVideoPlayer {
+        max-width: none !important;
+        width: 100% !important;
+      }
+
+      /* Scale video element to fill vertical space (slightly reduced to show controls) */
+      #gelcomVideoPlayer,
+      #image,
+      video {
+        max-height: 90vh !important;
+        height: 90vh !important;
+        width: auto !important;
+        max-width: 100% !important;
+        object-fit: contain !important;
+      }
+
+      /* Make flexi container fill width and center content */
+      .flexi {
+        max-width: 100% !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+      }
+
+      /* Keep navigation container horizontal with proper spacing */
+      #navlinksContainer.flexi {
+        flex-direction: row !important;
+        justify-content: space-evenly !important;
+        max-width: 1000px !important;
+      }
+
+      /* Expand content area to use available width */
+      #content {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+      }
+
+      /* Make video wrapper fit content for proper hover detection */
+      #fluid_video_wrapper_gelcomVideoPlayer {
+        width: auto !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+      }
+
+      /* Hide the right sidebar ads */
+      .postViewSidebarRight,
+      .postListSidebarRight {
+        display: none !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+    console.log('[R34 Tools] Theater mode applied');
+  }
+
+  // =============================================================================
+  // CENTER ALIGN PAGE CONTENT
+  // =============================================================================
+
+  /**
+   * Center align the main page content area (POST PAGES ONLY)
+   */
+  async function applyCenterAlignContent() {
+    const settings = await settingsManager.getAll();
+    if (!settings.centerAlignContent) return;
+
+    // ONLY apply to post pages, not list pages
+    if (!isPostPage()) return;
+
+    if (document.getElementById('r34-center-align')) return;
+
+    const style = document.createElement('style');
+    style.id = 'r34-center-align';
+    style.textContent = `
+      /* Center align main content area (POST PAGES ONLY) */
+
+      /* Modify post-view layout to center content between sidebars */
+      #post-view {
+        display: flex !important;
+        justify-content: center !important;
+      }
+
+      /* Center the main content wrapper */
+      #right-col,
+      .content {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+
+      /* Center fit-to-screen container */
+      #fit-to-screen {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
+      }
+
+      /* Ensure flexi container centers its content */
+      .flexi {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+      }
+
+      /* Keep navigation horizontal and constrain width to match content */
+      #navlinksContainer.flexi {
+        flex-direction: row !important;
+        justify-content: space-evenly !important;
+        max-width: 1000px !important;
+        width: 100% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+
+      /* Center video/image container - override inline max-width */
+      #gelcomVideoContainer {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        display: flex !important;
+        justify-content: center !important;
+      }
+
+      /* Center the fluid wrapper */
+      #fluid_video_wrapper_gelcomVideoPlayer {
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+
+      /* Center the image/video element itself */
+      #image,
+      video,
+      #gelcomVideoPlayer {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        display: block !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+    console.log('[R34 Tools] Center align content applied (post page only)');
+  }
+
+  // =============================================================================
+  // CENTER ALIGN LIST PAGE CONTENT
+  // =============================================================================
+
+  /**
+   * Center align the thumbnail grid on list/search pages (LIST PAGES ONLY)
+   */
+  async function applyCenterAlignListContent() {
+    const settings = await settingsManager.getAll();
+    if (!settings.centerAlignListContent) return;
+
+    // ONLY apply to list pages, not post pages
+    if (!isListPage()) return;
+
+    if (document.getElementById('r34-center-align-list')) return;
+
+    const style = document.createElement('style');
+    style.id = 'r34-center-align-list';
+    style.textContent = `
+      /* Center align list page content (LIST PAGES ONLY) */
+
+      /* Center the post-list container */
+      #post-list {
+        display: flex !important;
+        justify-content: center !important;
+      }
+
+      /* Constrain content width for ultrawide monitors */
+      #post-list .content {
+        max-width: 2200px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+
+      /* Center the actual thumbnail grid */
+      .image-list {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: flex-start !important;
+        max-width: 100% !important;
+      }
+
+      /* Ensure thumbnails flow properly in centered flex container */
+      .image-list > span.thumb,
+      .image-list > .thumb {
+        flex-shrink: 0 !important;
+      }
+
+      /* Center pagination */
+      .pagination,
+      .paginator,
+      [data-r34-top-pagination] {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        max-width: 2200px !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+    console.log('[R34 Tools] Center align list content applied (list page only)');
+  }
+
+  // =============================================================================
   // SAVE ICONS ON TAG LINKS
   // =============================================================================
 
@@ -1449,6 +1686,9 @@
     await applyDefaultTheme();
     await hideTagActionButtons();
     await applyCompactHeader();
+    await applyTheaterMode();
+    await applyCenterAlignContent();
+    await applyCenterAlignListContent();
     removeRightSidebar();
     await duplicatePaginationToTop();
 
@@ -1495,6 +1735,39 @@
       if (hasTagHidingChange) {
         console.log('[R34 Tools] Tag hiding settings changed, re-applying...');
         hideTagActionButtons();
+      }
+
+      // Handle theater mode changes
+      if ('theaterMode' in changes) {
+        const style = document.getElementById('r34-theater-mode');
+        if (changes.theaterMode.newValue && !style) {
+          applyTheaterMode();
+        } else if (!changes.theaterMode.newValue && style) {
+          style.remove();
+          console.log('[R34 Tools] Theater mode disabled');
+        }
+      }
+
+      // Handle center align changes (post pages)
+      if ('centerAlignContent' in changes) {
+        const style = document.getElementById('r34-center-align');
+        if (changes.centerAlignContent.newValue && !style) {
+          applyCenterAlignContent();
+        } else if (!changes.centerAlignContent.newValue && style) {
+          style.remove();
+          console.log('[R34 Tools] Center align (post) disabled');
+        }
+      }
+
+      // Handle center align changes (list pages)
+      if ('centerAlignListContent' in changes) {
+        const style = document.getElementById('r34-center-align-list');
+        if (changes.centerAlignListContent.newValue && !style) {
+          applyCenterAlignListContent();
+        } else if (!changes.centerAlignListContent.newValue && style) {
+          style.remove();
+          console.log('[R34 Tools] Center align (list) disabled');
+        }
       }
     }
   });

@@ -221,7 +221,10 @@
     autoPlayPostVideos: false,
     autoPauseOnTabLeave: false,
     autoUnmuteOnInteraction: false,
-    defaultVideoVolume: 0.5
+    defaultVideoVolume: 0.5,
+    theaterMode: false,
+    centerAlignContent: false,
+    centerAlignListContent: false
   };
 
   // Thumbnail scale options
