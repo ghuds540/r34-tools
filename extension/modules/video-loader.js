@@ -324,6 +324,28 @@
     if (videoUrl) {
       const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos, settings.defaultVideoVolume);
       replaceImageWithVideo(img, video, wrapper);
+
+      // Find parent <a> tag and prevent its default click behavior when clicking video
+      const parentLink = video.closest('a');
+      if (parentLink && postUrl) {
+        console.log('[R34 Tools] Found parent link (manual load), adding click handler override');
+
+        parentLink.addEventListener('click', (e) => {
+          // Check if click target is the video or inside the video
+          if (e.target === video || video.contains(e.target)) {
+            console.log('[R34 Tools] Click on video detected, preventing link navigation');
+
+            // Prevent the <a> tag from navigating
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Let the video's own click handler manage navigation
+            // (which will check if clicking controls or not)
+          }
+          // Otherwise, let the <a> tag handle the click normally (clicking margin/wrapper)
+        }, true); // Use capture phase to intercept before the link handles it
+      }
+
       showNotification('Video loaded', 'success');
       return true;
     } else {
@@ -344,11 +366,32 @@
     const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos, settings.defaultVideoVolume);
 
     img.parentNode.replaceChild(video, img);
-    
+
     // Now that video is in DOM, load it
     video.load();
-    
+
     console.log('[R34 Tools] Replaced thumbnail with video player');
+
+    // Find parent <a> tag and prevent its default click behavior when clicking video
+    const parentLink = video.closest('a');
+    if (parentLink && postUrl) {
+      console.log('[R34 Tools] Found parent link, adding click handler override');
+
+      parentLink.addEventListener('click', (e) => {
+        // Check if click target is the video or inside the video
+        if (e.target === video || video.contains(e.target)) {
+          console.log('[R34 Tools] Click on video detected, preventing link navigation');
+
+          // Prevent the <a> tag from navigating
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Let the video's own click handler manage navigation
+          // (which will check if clicking controls or not)
+        }
+        // Otherwise, let the <a> tag handle the click normally (clicking margin/wrapper)
+      }, true); // Use capture phase to intercept before the link handles it
+    }
 
     if (wrapper) {
       reattachButtonsToVideo(wrapper, video);
