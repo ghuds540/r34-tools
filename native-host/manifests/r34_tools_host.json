@@ -1,0 +1,9 @@
+{
+  "name": "com.r34tools.native_host",
+  "description": "Native messaging host for R34 Tools extension",
+  "path": "ABSOLUTE_PATH_TO_LAUNCHER",
+  "type": "stdio",
+  "allowed_extensions": [
+    "r34-tools@r34tools.local"
+  ]
+}

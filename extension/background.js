@@ -6,6 +6,10 @@ const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
 const DOWNLOAD_TIMEOUT_MS = 5000;
 
+// Native messaging constants
+const NATIVE_HOST_NAME = 'com.r34tools.native_host';
+const NATIVE_TIMEOUT_MS = 3000;
+
 /**
  * Download with retry logic and exponential backoff
  * @param {string} url - URL to download
@@ -47,6 +51,59 @@ async function downloadWithRetry(url, filename, conflictAction, attempt = 1) {
 }
 
 // =============================================================================
+// NATIVE MESSAGING
+// =============================================================================
+
+/**
+ * Send message to native host with timeout
+ * @param {Object} message - Message to send
+ * @returns {Promise<Object>} Response from host
+ */
+async function sendNativeMessage(message) {
+  // Check if native messaging is enabled
+  const settings = await browser.storage.local.get({ enableNativeHost: false });
+
+  if (!settings.enableNativeHost) {
+    console.log('[R34 Tools] Native host disabled in settings');
+    return { success: false, error: 'Native host disabled' };
+  }
+
+  try {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Native host timeout')), NATIVE_TIMEOUT_MS)
+    );
+
+    const messagePromise = browser.runtime.sendNativeMessage(
+      NATIVE_HOST_NAME,
+      message
+    );
+
+    const response = await Promise.race([messagePromise, timeoutPromise]);
+    console.log('[R34 Tools] Native host response:', response);
+    return response;
+  } catch (error) {
+    console.error('[R34 Tools] Native host error:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Test native host connection
+ * @returns {Promise<boolean>} True if host is available
+ */
+async function testNativeHost() {
+  try {
+    const response = await sendNativeMessage({
+      action: 'getStats',
+      data: {}
+    });
+    return response.success === true;
+  } catch (error) {
+    return false;
+  }
+}
+
+// =============================================================================
 // KEYBOARD COMMAND HANDLERS
 // =============================================================================
 
@@ -81,6 +138,40 @@ browser.commands.onCommand.addListener(async (command) => {
 
 // Listen for messages from content script
 browser.runtime.onMessage.addListener(async (message, sender) => {
+  // Check duplicate via native host
+  if (message.action === 'checkDuplicate') {
+    try {
+      const response = await sendNativeMessage({
+        action: 'checkDuplicate',
+        data: { postId: message.postId }
+      });
+      return response;
+    } catch (error) {
+      console.error('[R34 Tools] Duplicate check failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Record download via native host
+  if (message.action === 'recordDownload') {
+    try {
+      const response = await sendNativeMessage({
+        action: 'recordDownload',
+        data: message.data
+      });
+      return response;
+    } catch (error) {
+      console.error('[R34 Tools] Record download failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Test native host connection
+  if (message.action === 'testNativeHost') {
+    const isAvailable = await testNativeHost();
+    return { success: true, available: isAvailable };
+  }
+
   // Download media file
   if (message.action === 'download') {
     try {

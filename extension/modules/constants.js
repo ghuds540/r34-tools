@@ -215,7 +215,9 @@
     hideTagWiki: false,
     hideTagAdd: false,
     hideTagRemove: false,
-    hideTagBookmark: false
+    hideTagBookmark: false,
+    enableNativeHost: false,
+    preventDuplicates: true
   };
 
   // Thumbnail scale options

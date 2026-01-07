@@ -15,6 +15,10 @@
 
 - sound for success operation
 - ability to turn off/on sounds at fine grain
+- if something gets 429'd add to queue to retry later
+- change hover download icon on search and post pages to be checkmark if successfully downloaded already
+- make animated gifs autoplay (option)
+- styling has somehow made post screen not have scrubber update (always 0 seconds)
 
 long game:
 - visual sorting stuff (auto adds score:ascending, etc)

@@ -5,7 +5,7 @@
   'use strict';
 
   // Get dependencies
-  const { Rule34Extractor, showNotification, extractPostId } = window.R34Tools;
+  const { Rule34Extractor, showNotification, extractPostId, settingsManager } = window.R34Tools;
 
   /**
    * Download media from thumbnail
@@ -15,9 +15,35 @@
    */
   async function downloadFromThumbnail(postUrl) {
     console.log('[R34 Tools] Starting download from thumbnail:', postUrl);
-    showNotification('Fetching media...', 'info');
 
     try {
+      // Extract post ID early for duplicate check
+      const postId = extractPostId(postUrl);
+      console.log('[R34 Tools] Post ID:', postId);
+
+      // Check for duplicate via native host if enabled
+      const settings = await settingsManager.getAll();
+      if (settings.enableNativeHost && settings.preventDuplicates && postId) {
+        showNotification('Checking for duplicate...', 'info');
+
+        const dupCheck = await browser.runtime.sendMessage({
+          action: 'checkDuplicate',
+          postId: postId
+        });
+
+        if (dupCheck.success && dupCheck.data && dupCheck.data.isDuplicate) {
+          const fileStatus = dupCheck.data.fileExists ? 'exists' : 'was deleted';
+          showNotification(
+            `Already downloaded: ${dupCheck.data.filename}\nFile ${fileStatus}`,
+            'warning'
+          );
+          console.log('[R34 Tools] Duplicate found, skipping download');
+          return false;
+        }
+      }
+
+      showNotification('Fetching media...', 'info');
+
       console.log('[R34 Tools] Fetching post page HTML...');
       const response = await fetch(postUrl);
 
@@ -65,6 +91,33 @@
           ? `\nArtists: ${artists.join(', ')}`
           : '';
         console.log('[R34 Tools] Download successful');
+
+        // Record download via native host if enabled
+        if (settings.enableNativeHost && postId) {
+          try {
+            // Get file path from browser.downloads API
+            const downloadItem = await browser.downloads.search({ id: dlResponse.downloadId });
+            const filePath = downloadItem[0]?.filename || '';
+
+            await browser.runtime.sendMessage({
+              action: 'recordDownload',
+              data: {
+                postId: postId,
+                filename: filename,
+                filePath: filePath,
+                mediaUrl: mediaUrl,
+                artists: artists,
+                tags: [],
+                hash: ''
+              }
+            });
+            console.log('[R34 Tools] Download recorded in database');
+          } catch (error) {
+            console.error('[R34 Tools] Failed to record download:', error);
+            // Don't fail the download if recording fails
+          }
+        }
+
         showNotification(`Downloaded: ${filename}${artistInfo}`, 'success');
         return true;
       } else {
@@ -88,6 +141,29 @@
     const extractor = new Rule34Extractor();
     extractor.extractPostId();
 
+    const postId = extractor.postId;
+
+    // Check for duplicate via native host if enabled
+    const settings = await settingsManager.getAll();
+    if (settings.enableNativeHost && settings.preventDuplicates && postId) {
+      showNotification('Checking for duplicate...', 'info');
+
+      const dupCheck = await browser.runtime.sendMessage({
+        action: 'checkDuplicate',
+        postId: postId
+      });
+
+      if (dupCheck.success && dupCheck.data && dupCheck.data.isDuplicate) {
+        const fileStatus = dupCheck.data.fileExists ? 'exists' : 'was deleted';
+        showNotification(
+          `Already downloaded: ${dupCheck.data.filename}\nFile ${fileStatus}`,
+          'warning'
+        );
+        console.log('[R34 Tools] Duplicate found, skipping download');
+        return false;
+      }
+    }
+
     // Use retry mechanism to wait for page to fully load
     const mediaUrl = await extractor.extractMediaUrlWithRetry();
     extractor.extractMetadata();
@@ -110,6 +186,33 @@
         const artistInfo = extractor.artists.length > 0
           ? `\nArtists: ${extractor.artists.join(', ')}`
           : '';
+
+        // Record download via native host if enabled
+        if (settings.enableNativeHost && postId) {
+          try {
+            // Get file path from browser.downloads API
+            const downloadItem = await browser.downloads.search({ id: response.downloadId });
+            const filePath = downloadItem[0]?.filename || '';
+
+            await browser.runtime.sendMessage({
+              action: 'recordDownload',
+              data: {
+                postId: postId,
+                filename: filename,
+                filePath: filePath,
+                mediaUrl: extractor.mediaUrl,
+                artists: extractor.artists,
+                tags: [],
+                hash: ''
+              }
+            });
+            console.log('[R34 Tools] Download recorded in database');
+          } catch (error) {
+            console.error('[R34 Tools] Failed to record download:', error);
+            // Don't fail the download if recording fails
+          }
+        }
+
         showNotification(`Downloaded: ${filename}${artistInfo}`, 'success');
         return true;
       } else {

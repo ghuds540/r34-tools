@@ -147,6 +147,44 @@
       </div>
     </section>
 
+    <section class="settings-section">
+      <h2>Native Host (Duplicate Detection)</h2>
+
+      <div class="setting-item">
+        <p class="help-text">Enable duplicate detection and download tracking using a native host application. Requires Python 3 and installation script.</p>
+        <a href="https://github.com/your-repo/r34-tools/blob/main/native-host/README.md" target="_blank" class="help-link">→ Installation Instructions</a>
+      </div>
+
+      <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="enableNativeHost">
+          <span>Enable Native Host</span>
+        </label>
+        <span class="status-badge" id="hostStatus">Not Connected</span>
+        <p class="help-text">Enables communication with native host for duplicate detection</p>
+      </div>
+
+      <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="preventDuplicates">
+          <span>Prevent Duplicate Downloads</span>
+        </label>
+        <p class="help-text">Automatically skip downloads for posts you've already saved</p>
+      </div>
+
+      <div class="setting-item">
+        <div class="button-group">
+          <button id="testNativeHost" class="btn">Test Connection</button>
+          <button id="viewStats" class="btn btn-secondary">View Statistics</button>
+        </div>
+      </div>
+
+      <div id="statsDisplay" style="display: none; margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 6px; border: 1px solid #ddd;">
+        <strong style="display: block; margin-bottom: 10px; color: #333;">Download Statistics:</strong>
+        <ul id="statsList" style="margin: 0; padding-left: 20px; line-height: 1.8; color: #555;"></ul>
+      </div>
+    </section>
+
     <div class="footer">
       <button id="resetSettings" class="btn btn-secondary">Reset to Defaults</button>
       <div id="status" class="status"></div>

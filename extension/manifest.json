@@ -10,9 +10,16 @@
     "storage",
     "downloads",
     "activeTab",
+    "nativeMessaging",
     "*://rule34.xxx/*",
     "*://*.rule34.xxx/*"
   ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "r34-tools@r34tools.local"
+    }
+  },
 
   "background": {
     "scripts": ["background.js"],
