@@ -33,7 +33,7 @@
   } = window.R34Tools;
 
   const {
-    downloadFromCurrentPage, savePageData, handleThumbnailDownloadClick, handleThumbnailFullResClick
+    downloadFromCurrentPage, downloadFromThumbnail, savePageData, handleThumbnailDownloadClick, handleThumbnailFullResClick
   } = window.R34Tools;
 
   // =============================================================================
@@ -173,6 +173,15 @@
       flex-direction: column;
       gap: ${PANEL_STYLES.gap};
     `;
+
+    // Add download page button
+    buttonsContainer.appendChild(await createStyledButton(
+      '⬇',
+      'Download Page',
+      'Download all media from current page',
+      COLORS.accent.green,
+      () => downloadAllFromPage()
+    ));
 
     // Add save page button
     buttonsContainer.appendChild(await createStyledButton(
@@ -606,6 +615,64 @@
     }
 
     showNotification(`Loaded ${loaded} videos`, 'success');
+  }
+
+  // =============================================================================
+  // DOWNLOAD ALL FROM PAGE
+  // =============================================================================
+
+  /**
+   * Download all media from thumbnails on current page
+   */
+  async function downloadAllFromPage() {
+    const thumbnails = safeQuerySelectorAll(SELECTORS.thumbnails);
+
+    if (thumbnails.length === 0) {
+      showNotification('No thumbnails found on this page', 'info');
+      return;
+    }
+
+    // Extract post links for each thumbnail
+    const downloadTasks = [];
+    for (const img of thumbnails) {
+      const postLink = findPostLink(img);
+      if (postLink && postLink.href) {
+        downloadTasks.push(postLink.href);
+      }
+    }
+
+    if (downloadTasks.length === 0) {
+      showNotification('No valid post links found', 'error');
+      return;
+    }
+
+    showNotification(`Starting download of ${downloadTasks.length} items...`, 'info');
+
+    let downloaded = 0;
+    let failed = 0;
+
+    for (const postUrl of downloadTasks) {
+      try {
+        const success = await downloadFromThumbnail(postUrl);
+        if (success) {
+          downloaded++;
+        } else {
+          failed++;
+        }
+        // Small delay between downloads to avoid overwhelming the queue
+        await delay(100);
+      } catch (error) {
+        console.error('[R34 Tools] Download error:', error);
+        failed++;
+      }
+    }
+
+    // Final summary notification
+    const summary = downloaded > 0
+      ? `Downloaded ${downloaded}/${downloadTasks.length} items` + (failed > 0 ? ` (${failed} failed)` : '')
+      : `All ${failed} downloads failed`;
+
+    showNotification(summary, downloaded > 0 ? 'success' : 'error');
   }
 
   // =============================================================================
