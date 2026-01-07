@@ -41,6 +41,7 @@ async function loadSettings() {
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
     autoStartEmbedVideos: true,
+    maxAutoplayVideos: 5,
     thumbnailScale: 1.0
   });
 
@@ -56,6 +57,7 @@ async function loadSettings() {
   document.getElementById('alwaysUseFullResolution').checked = settings.alwaysUseFullResolution;
   document.getElementById('autoLoadVideoEmbeds').checked = settings.autoLoadVideoEmbeds;
   document.getElementById('autoStartEmbedVideos').checked = settings.autoStartEmbedVideos;
+  document.getElementById('maxAutoplayVideos').value = settings.maxAutoplayVideos.toString();
   document.getElementById('thumbnailScale').value = settings.thumbnailScale.toString();
 
   if (settings.downloadKey) {
@@ -122,6 +124,7 @@ function setupEventListeners() {
   document.getElementById('alwaysUseFullResolution').addEventListener('change', autoSaveSettings);
   document.getElementById('autoLoadVideoEmbeds').addEventListener('change', autoSaveSettings);
   document.getElementById('autoStartEmbedVideos').addEventListener('change', autoSaveSettings);
+  document.getElementById('maxAutoplayVideos').addEventListener('change', autoSaveSettings);
   document.getElementById('thumbnailScale').addEventListener('change', autoSaveSettings);
 
   // Preview quality checkboxes - disable first when second is checked
@@ -144,25 +147,41 @@ function setupEventListeners() {
     highQualityCheckbox.parentElement.style.opacity = '0.5';
   }
 
-  // Video embed checkboxes - disable autostart when auto load is unchecked
+  // Video embed checkboxes - disable autostart and max videos when auto load is unchecked
   const autoLoadVideoCheckbox = document.getElementById('autoLoadVideoEmbeds');
   const autoStartVideoCheckbox = document.getElementById('autoStartEmbedVideos');
+  const maxAutoplaySelect = document.getElementById('maxAutoplayVideos');
 
-  autoLoadVideoCheckbox.addEventListener('change', () => {
-    if (!autoLoadVideoCheckbox.checked) {
+  function updateVideoAutoplayDependents() {
+    const autoLoadEnabled = autoLoadVideoCheckbox.checked;
+    const autoStartEnabled = autoStartVideoCheckbox.checked;
+    
+    // Disable autostart when auto load is off
+    if (!autoLoadEnabled) {
       autoStartVideoCheckbox.disabled = true;
       autoStartVideoCheckbox.parentElement.style.opacity = '0.5';
+      maxAutoplaySelect.disabled = true;
+      maxAutoplaySelect.parentElement.style.opacity = '0.5';
     } else {
       autoStartVideoCheckbox.disabled = false;
       autoStartVideoCheckbox.parentElement.style.opacity = '1';
+      
+      // Disable max autoplay when autostart is off
+      if (!autoStartEnabled) {
+        maxAutoplaySelect.disabled = true;
+        maxAutoplaySelect.parentElement.style.opacity = '0.5';
+      } else {
+        maxAutoplaySelect.disabled = false;
+        maxAutoplaySelect.parentElement.style.opacity = '1';
+      }
     }
-  });
+  }
+
+  autoLoadVideoCheckbox.addEventListener('change', updateVideoAutoplayDependents);
+  autoStartVideoCheckbox.addEventListener('change', updateVideoAutoplayDependents);
 
   // Set initial state
-  if (!autoLoadVideoCheckbox.checked) {
-    autoStartVideoCheckbox.disabled = true;
-    autoStartVideoCheckbox.parentElement.style.opacity = '0.5';
-  }
+  updateVideoAutoplayDependents();
 }
 
 // Start recording keyboard shortcut
@@ -304,6 +323,7 @@ async function autoSaveSettings() {
     alwaysUseFullResolution: document.getElementById('alwaysUseFullResolution').checked,
     autoLoadVideoEmbeds: document.getElementById('autoLoadVideoEmbeds').checked,
     autoStartEmbedVideos: document.getElementById('autoStartEmbedVideos').checked,
+    maxAutoplayVideos: parseInt(document.getElementById('maxAutoplayVideos').value),
     thumbnailScale: parseFloat(document.getElementById('thumbnailScale').value)
   };
 
@@ -328,6 +348,7 @@ async function resetSettings() {
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
     autoStartEmbedVideos: true,
+    maxAutoplayVideos: 5,
     thumbnailScale: 1.0
   };
 

@@ -124,13 +124,25 @@
           <input type="checkbox" id="autoLoadVideoEmbeds">
           <span>Auto load videos into embed players</span>
         </label>
-        <p class="help-text">Automatically replace video thumbnails with playable video players when loading full resolution</p>
+        <p class="help-text">Replace video thumbnails with playable video players. Videos load on-demand when enabled, regardless of autoplay settings below.</p>
         <div style="margin-left: 20px; margin-top: 12px;">
           <label class="checkbox-label">
             <input type="checkbox" id="autoStartEmbedVideos">
             <span>Auto start embed videos</span>
           </label>
-          <p class="help-text" style="margin-left: 24px;">Videos will autoplay (muted) when loaded into embed players</p>
+          <p class="help-text" style="margin-left: 24px;">Videos will autoplay (muted) when loaded. Unchecked = all videos load as players but won't autoplay until you click play.</p>
+          <div style="margin-left: 24px; margin-top: 12px;">
+            <label>Max autoplay videos</label>
+            <select id="maxAutoplayVideos">
+              <option value="-1">Unlimited</option>
+              <option value="3">3 videos</option>
+              <option value="5">5 videos</option>
+              <option value="10">10 videos</option>
+              <option value="15">15 videos</option>
+              <option value="20">20 videos</option>
+            </select>
+            <p class="help-text" style="margin-left: 0;">Limit autoplaying videos to prevent high memory usage. Videos beyond this limit will still load as playable players but won't autostart.</p>
+          </div>
         </div>
       </div>
 

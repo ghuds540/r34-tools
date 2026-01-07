@@ -210,6 +210,7 @@
     alwaysUseFullResolution: false,
     autoLoadVideoEmbeds: true,
     autoStartEmbedVideos: true,
+    maxAutoplayVideos: 5,
     thumbnailScale: 1.0,
     duplicatePagination: false,
     hideTagWiki: false,

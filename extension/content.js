@@ -19,7 +19,7 @@
   } = window.R34Tools;
 
   const {
-    isVideoThumbnail, processVideoThumbnail, processedVideos, checkedPostIds
+    isVideoThumbnail, processVideoThumbnail, processedVideos, checkedPostIds, resetAutoplayCounter
   } = window.R34Tools;
 
   const {
@@ -1244,6 +1244,9 @@
    */
   async function init() {
     console.log('[R34 Tools] Initializing extension...');
+    
+    // Reset autoplay counter on page load
+    resetAutoplayCounter();
 
     // Apply theme and layout modifications first
     await applyAmoledTheme();

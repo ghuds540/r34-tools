@@ -14,6 +14,9 @@
   // Track checked post IDs to avoid duplicate fetches
   const checkedPostIds = new Set();
 
+  // Track number of autoplayed videos on current page
+  let autoplayedVideosCount = 0;
+
   /**
    * Detect if a thumbnail image is a video
    * Consolidates 4 duplicate instances from content.js
@@ -154,15 +157,24 @@
    * @param {string} imgStyles - CSS styles from original image
    * @param {boolean} autoplay - Whether to autoplay video
    * @param {string} postUrl - Post page URL (optional, for click navigation)
+   * @param {number} maxAutoplay - Max number of videos to autoplay (-1 for unlimited)
    * @returns {HTMLVideoElement} Video element
    */
-  function createVideoElement(videoUrl, imgStyles, autoplay = false, postUrl = null) {
+  function createVideoElement(videoUrl, imgStyles, autoplay = false, postUrl = null, maxAutoplay = -1) {
     const video = document.createElement('video');
     video.src = videoUrl;
     video.controls = true;
     video.loop = true;
     video.muted = true;
-    video.autoplay = autoplay;
+    
+    // Check autoplay limit
+    const shouldAutoplay = autoplay && (maxAutoplay === -1 || autoplayedVideosCount < maxAutoplay);
+    video.autoplay = shouldAutoplay;
+    
+    // Track autoplayed videos
+    if (shouldAutoplay) {
+      autoplayedVideosCount++;
+    }
 
     // Copy styles from original image
     video.style.cssText = imgStyles;
@@ -292,7 +304,7 @@
     const videoUrl = await getVideoUrl(img, postUrl, postId);
 
     if (videoUrl) {
-      const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl);
+      const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos);
       replaceImageWithVideo(img, video, wrapper);
       showNotification('Video loaded', 'success');
       return true;
@@ -311,7 +323,7 @@
    */
   async function embedVideoInThumbnail(img, videoUrl, settings, postUrl = null) {
     const wrapper = img.closest(`.${CLASS_NAMES.thumbWrapper}`);
-    const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl);
+    const video = createVideoElement(videoUrl, img.style.cssText, settings.autoStartEmbedVideos, postUrl, settings.maxAutoplayVideos);
 
     img.parentNode.replaceChild(video, img);
     console.log('[R34 Tools] Replaced thumbnail with video player');
@@ -368,6 +380,13 @@
     }
   }
 
+  /**
+   * Reset autoplay counter (called on page navigation or manual reset)
+   */
+  function resetAutoplayCounter() {
+    autoplayedVideosCount = 0;
+  }
+
   // Export all functions to global namespace
   window.R34Tools.isVideoThumbnail = isVideoThumbnail;
   window.R34Tools.constructVideoUrl = constructVideoUrl;
@@ -379,6 +398,7 @@
   window.R34Tools.loadVideoInThumbnail = loadVideoInThumbnail;
   window.R34Tools.embedVideoInThumbnail = embedVideoInThumbnail;
   window.R34Tools.processVideoThumbnail = processVideoThumbnail;
+  window.R34Tools.resetAutoplayCounter = resetAutoplayCounter;
 
   // Export tracking sets
   window.R34Tools.processedVideos = processedVideos;
