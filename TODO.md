@@ -56,3 +56,7 @@ pretty console printout of rule34 tools ascii logo with version.
 code refactor
 
 save page other than tag add to database and storage
+
+introduce actions tracking (times downloaded, times seen post, pages saved, videos played, pages visited, times expanded posts, searches, can see stuff over time as well)
+
+could add 7tv style socials to comments and profiles
