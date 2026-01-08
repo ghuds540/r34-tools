@@ -33,12 +33,16 @@
   } = window.R34Tools;
 
   const {
-    downloadFromCurrentPage, downloadFromThumbnail, savePageData, handleThumbnailDownloadClick, handleThumbnailFullResClick
+    downloadFromCurrentPage, downloadFromThumbnail, savePageData, handleThumbnailDownloadClick, handleThumbnailFullResClick, setTotalDownloads
   } = window.R34Tools;
 
   // =============================================================================
   // MESSAGE HANDLERS
   // =============================================================================
+
+  // Track latest stats from both sources
+  let latestDownloadStats = { downloading: 0, paused: 0, completed: 0, failed: 0 };
+  let latestFetchStats = { fetchingHtml: 0, rateLimited: 0, pending: 0, total: 0, completed: 0 };
 
   // Listen for messages from background script
   browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
@@ -46,8 +50,63 @@
       await downloadFromCurrentPage();
     } else if (message.action === 'savePage') {
       await savePageData();
+    } else if (message.action === 'queueStatsUpdate') {
+      latestDownloadStats = message.stats;
+      updateQueueStatusDisplay();
     }
   });
+
+  // Listen for HTML fetch stats updates
+  window.addEventListener('r34tools-fetch-stats-updated', (event) => {
+    latestFetchStats = event.detail;
+    updateQueueStatusDisplay();
+  });
+
+  /**
+   * Update queue status display in sidebar
+   */
+  function updateQueueStatusDisplay() {
+    const statusText = document.getElementById('r34-queue-status-text');
+    const progressBarContainer = document.getElementById('r34-progress-bar-container');
+    const progressBar = document.getElementById('r34-progress-bar');
+    if (!statusText) {
+      return;
+    }
+
+    const { downloading, paused, completed, failed } = latestDownloadStats;
+    const { fetchingHtml, rateLimited, pending, total: totalDownloads, completed: completedDownloads } = latestFetchStats;
+    const total = downloading + paused + completed + failed + fetchingHtml + rateLimited + pending;
+
+    if (total === 0 && totalDownloads === 0) {
+      statusText.textContent = 'No active downloads';
+      if (progressBarContainer) progressBarContainer.style.display = 'none';
+      return;
+    }
+
+    // Build status text
+    const parts = [];
+    if (totalDownloads > 0) {
+      parts.push(`${completedDownloads}/${totalDownloads}`);
+    }
+    if (fetchingHtml > 0) parts.push(`${fetchingHtml} fetching`);
+    if (rateLimited > 0) parts.push(`${rateLimited} paused (fetch)`);
+    if (downloading > 0) parts.push(`${downloading} downloading`);
+    if (paused > 0) parts.push(`${paused} paused (dl)`);
+    if (completed > 0) parts.push(`${completed} done`);
+    if (failed > 0) parts.push(`${failed} failed`);
+
+    console.log('[R34 Tools] Queue status:', parts.join(', '));
+    statusText.textContent = parts.join(', ');
+
+    // Update progress bar
+    if (progressBar && progressBarContainer && totalDownloads > 0) {
+      progressBarContainer.style.display = 'block';
+      const percent = (completedDownloads / totalDownloads) * 100;
+      progressBar.style.width = `${percent}%`;
+    } else if (progressBarContainer) {
+      progressBarContainer.style.display = 'none';
+    }
+  }
 
   // =============================================================================
   // SIDEBAR CONTROLS PANEL
@@ -210,6 +269,60 @@
       () => forceLoadAllVideos()
     ));
 
+    // Add download queue status display
+    const queueStatusContainer = document.createElement('div');
+    queueStatusContainer.id = 'r34-queue-status';
+    queueStatusContainer.style.cssText = `
+      margin-top: 8px;
+      padding: 8px;
+      border-top: 1px solid ${COLORS.accent.grayDark};
+      border-bottom: 1px solid ${COLORS.accent.grayDark};
+      font-size: 11px;
+      color: ${settings.amoledTheme ? COLORS.accent.green : '#333333'};
+      line-height: 1.4;
+    `;
+
+    const queueStatusLabel = document.createElement('div');
+    queueStatusLabel.textContent = 'Download Queue:';
+    queueStatusLabel.style.cssText = `
+      font-weight: 600;
+      margin-bottom: 4px;
+    `;
+    queueStatusContainer.appendChild(queueStatusLabel);
+
+    const queueStatusText = document.createElement('div');
+    queueStatusText.id = 'r34-queue-status-text';
+    queueStatusText.textContent = 'No active downloads';
+    queueStatusText.style.cssText = `
+      font-size: 10px;
+      opacity: 0.8;
+    `;
+    queueStatusContainer.appendChild(queueStatusText);
+
+    // Progress bar
+    const progressBarContainer = document.createElement('div');
+    progressBarContainer.id = 'r34-progress-bar-container';
+    progressBarContainer.style.cssText = `
+      margin-top: 6px;
+      height: 4px;
+      background: ${COLORS.accent.grayDark};
+      border-radius: 2px;
+      overflow: hidden;
+      display: none;
+    `;
+
+    const progressBar = document.createElement('div');
+    progressBar.id = 'r34-progress-bar';
+    progressBar.style.cssText = `
+      height: 100%;
+      width: 0%;
+      background: ${settings.amoledTheme ? COLORS.accent.green : '#4CAF50'};
+      transition: width 0.3s ease;
+      border-radius: 2px;
+    `;
+    progressBarContainer.appendChild(progressBar);
+    queueStatusContainer.appendChild(progressBarContainer);
+
     // Add thumbnail scale controls
     const scaleContainer = document.createElement('div');
     scaleContainer.style.cssText = `
@@ -306,9 +419,11 @@
     });
 
     scaleContainer.appendChild(scaleButtonsRow);
-    buttonsContainer.appendChild(scaleContainer);
 
+    // Append all sections to panel in order
     controlsPanel.appendChild(buttonsContainer);
+    controlsPanel.appendChild(queueStatusContainer);
+    controlsPanel.appendChild(scaleContainer);
 
     // Insert panel into sidebar
     const searchForm = safeQuerySelector(SELECTORS.searchForm);
@@ -645,6 +760,9 @@
       showNotification('No valid post links found', 'error');
       return;
     }
+
+    // Set total count upfront for progress tracking
+    setTotalDownloads(downloadTasks.length);
 
     showNotification(`Starting download of ${downloadTasks.length} items...`, 'info');
 

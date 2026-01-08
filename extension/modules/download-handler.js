@@ -7,6 +7,275 @@
   // Get dependencies
   const { Rule34Extractor, showNotification, extractPostId, playClickSound } = window.R34Tools;
 
+  // Global rate limit state for HTML fetches
+  const fetchRateLimitState = {
+    isRateLimited: false,
+    backoffLevel: 0,
+    backoffEndTime: null,
+    pendingFetches: [], // {postUrl, resolve, reject}
+    testFetchData: null,
+    backoffTimeoutId: null
+  };
+
+  // Track all fetch activity
+  const activeFetches = new Set(); // Set of postUrls currently being fetched
+  const pendingDownloads = new Set(); // Set of postUrls waiting to start
+
+  // Progress tracking
+  let totalDownloads = 0; // Total number of downloads initiated
+  let completedDownloads = 0; // Number completed (success or failure)
+  let batchMode = false; // Whether total was pre-set for batch operation
+
+  /**
+   * Get HTML fetch queue stats
+   * @returns {Object} Stats object with fetchingHtml count
+   */
+  function getFetchQueueStats() {
+    return {
+      fetchingHtml: activeFetches.size,
+      rateLimited: fetchRateLimitState.pendingFetches.length,
+      pending: pendingDownloads.size,
+      total: totalDownloads,
+      completed: completedDownloads
+    };
+  }
+
+  /**
+   * Reset progress tracking
+   */
+  function resetProgress() {
+    totalDownloads = 0;
+    completedDownloads = 0;
+    batchMode = false;
+    triggerStatsUpdate();
+  }
+
+  /**
+   * Set total download count (for batch operations)
+   * @param {number} count - Total number of downloads
+   */
+  function setTotalDownloads(count) {
+    totalDownloads = count;
+    completedDownloads = 0;
+    batchMode = true; // Mark as batch mode
+    triggerStatsUpdate();
+  }
+
+  /**
+   * Start tracking a new download
+   */
+  function startDownload() {
+    // If batch is complete and user starts a new download, reset to individual mode
+    if (batchMode && completedDownloads >= totalDownloads) {
+      resetProgress();
+    }
+    
+    // Only increment total if not in batch mode
+    if (!batchMode) {
+      totalDownloads++;
+    }
+    triggerStatsUpdate();
+  }
+
+  /**
+   * Mark a download as completed
+   */
+  function completeDownload() {
+    completedDownloads++;
+    triggerStatsUpdate();
+
+    // Auto-reset when all done
+    if (completedDownloads >= totalDownloads && totalDownloads > 0) {
+      setTimeout(() => {
+        if (completedDownloads >= totalDownloads) {
+          resetProgress();
+        }
+      }, 60000); // Reset after 60s
+    }
+  }
+
+  /**
+   * Trigger queue stats update in content script
+   */
+  function triggerStatsUpdate() {
+    // Dispatch custom event to notify content script
+    window.dispatchEvent(new CustomEvent('r34tools-fetch-stats-updated', {
+      detail: getFetchQueueStats()
+    }));
+  }
+
+  /**
+   * Trigger global rate limit backoff for HTML fetches
+   */
+  function triggerFetchRateLimitBackoff() {
+    // Calculate backoff delay: 10s, 20s, 30s, 30s, 30s...
+    const delays = [10000, 20000, 30000];
+    const delay = delays[Math.min(fetchRateLimitState.backoffLevel, delays.length - 1)];
+    const delaySeconds = (delay / 1000).toFixed(1);
+
+    console.log(`[R34 Tools] HTML fetch rate limit triggered, pausing for ${delaySeconds}s (level ${fetchRateLimitState.backoffLevel})`);
+
+    fetchRateLimitState.isRateLimited = true;
+    fetchRateLimitState.backoffEndTime = Date.now() + delay;
+
+    showNotification(
+      `Rate limited - paused ${fetchRateLimitState.pendingFetches.length} fetch${fetchRateLimitState.pendingFetches.length !== 1 ? 'es' : ''}\nResuming in ${delaySeconds}s...`,
+      'info'
+    );
+
+    triggerStatsUpdate();
+
+    // Schedule resumption
+    fetchRateLimitState.backoffTimeoutId = setTimeout(() => {
+      resumeFetchQueueAfterBackoff();
+    }, delay);
+  }
+
+  /**
+   * Resume HTML fetch queue after backoff
+   */
+  async function resumeFetchQueueAfterBackoff() {
+    console.log('[R34 Tools] Fetch backoff period ended, testing with single fetch');
+
+    if (fetchRateLimitState.pendingFetches.length === 0) {
+      resetFetchRateLimitState();
+      return;
+    }
+
+    // Take ONE fetch to test if rate limit cleared
+    const testFetch = fetchRateLimitState.pendingFetches.shift();
+    fetchRateLimitState.testFetchData = testFetch;
+
+    try {
+      const response = await fetch(testFetch.postUrl);
+
+      if (response.status === 429) {
+        // Still rate limited - escalate and try again
+        console.log('[R34 Tools] Test fetch still rate limited, escalating backoff');
+        fetchRateLimitState.pendingFetches.unshift(testFetch); // Put it back
+        fetchRateLimitState.testFetchData = null;
+        fetchRateLimitState.backoffLevel++;
+        triggerFetchRateLimitBackoff();
+        return;
+      }
+
+      // Success! Resume gradually
+      console.log('[R34 Tools] Test fetch succeeded, resuming queue gradually');
+      testFetch.resolve(response);
+      fetchRateLimitState.testFetchData = null;
+      onTestFetchSuccess();
+
+    } catch (error) {
+      console.error('[R34 Tools] Test fetch failed:', error);
+      testFetch.reject(error);
+      fetchRateLimitState.testFetchData = null;
+
+      // Try next one if available
+      if (fetchRateLimitState.pendingFetches.length > 0) {
+        setTimeout(() => resumeFetchQueueAfterBackoff(), 1000);
+      } else {
+        resetFetchRateLimitState();
+      }
+    }
+  }
+
+  /**
+   * Handle successful test fetch - resume queue gradually
+   */
+  function onTestFetchSuccess() {
+    fetchRateLimitState.backoffLevel = 0; // Reset since we're successful
+    fetchRateLimitState.isRateLimited = false;
+
+    const STAGGER_DELAY = 300; // 300ms between each fetch
+    const totalCount = fetchRateLimitState.pendingFetches.length;
+
+    fetchRateLimitState.pendingFetches.forEach((pendingFetch, index) => {
+      setTimeout(async () => {
+        try {
+          console.log(`[R34 Tools] Resuming fetch ${index + 1}/${totalCount}:`, pendingFetch.postUrl);
+          const response = await fetch(pendingFetch.postUrl);
+
+          if (response.status === 429) {
+            // Rate limited again - re-queue
+            console.log('[R34 Tools] Rate limited again during resume');
+            fetchRateLimitState.pendingFetches = [pendingFetch];
+            fetchRateLimitState.backoffLevel = 0;
+            triggerFetchRateLimitBackoff();
+          } else {
+            pendingFetch.resolve(response);
+          }
+        } catch (error) {
+          pendingFetch.reject(error);
+        }
+      }, index * STAGGER_DELAY);
+    });
+
+    // Clear the pending queue (items will be processed by timeouts above)
+    fetchRateLimitState.pendingFetches = [];
+    triggerStatsUpdate();
+  }
+
+  /**
+   * Reset fetch rate limit state
+   */
+  function resetFetchRateLimitState() {
+    if (fetchRateLimitState.backoffTimeoutId) {
+      clearTimeout(fetchRateLimitState.backoffTimeoutId);
+    }
+    fetchRateLimitState.isRateLimited = false;
+    fetchRateLimitState.backoffLevel = 0;
+    fetchRateLimitState.backoffEndTime = null;
+    fetchRateLimitState.testFetchData = null;
+    fetchRateLimitState.backoffTimeoutId = null;
+    fetchRateLimitState.pendingFetches = [];
+    triggerStatsUpdate();
+  }
+
+  /**
+   * Fetch with coordinated rate limit backoff
+   * @param {string} url - URL to fetch
+   * @returns {Promise<Response>} Fetch response
+   */
+  async function fetchWithCoordinatedBackoff(url) {
+    // Track as active fetch
+    activeFetches.add(url);
+    triggerStatsUpdate();
+
+    try {
+      // If currently rate limited, queue this fetch
+      if (fetchRateLimitState.isRateLimited) {
+        console.log('[R34 Tools] Rate limited - queueing fetch:', url);
+        return new Promise((resolve, reject) => {
+          fetchRateLimitState.pendingFetches.push({ postUrl: url, resolve, reject });
+          triggerStatsUpdate();
+        });
+      }
+
+      // Not rate limited - try fetch
+      const response = await fetch(url);
+
+      if (response.status === 429) {
+        console.log('[R34 Tools] HTML fetch rate limited:', url);
+
+        // Queue this fetch and trigger backoff
+        return new Promise((resolve, reject) => {
+          fetchRateLimitState.pendingFetches.push({ postUrl: url, resolve, reject });
+          if (!fetchRateLimitState.isRateLimited) {
+            triggerFetchRateLimitBackoff();
+          }
+        });
+      }
+
+      return response;
+    } catch (error) {
+      throw error;
+    } finally {
+      // Remove from active fetches when done
+      activeFetches.delete(url);
+      triggerStatsUpdate();
+    }
+  }
+
   /**
    * Fetch with exponential backoff retry for rate limits
    * @param {string} url - URL to fetch
@@ -58,11 +327,11 @@
    */
   async function downloadFromThumbnail(postUrl) {
     console.log('[R34 Tools] Starting download from thumbnail:', postUrl);
-    showNotification('Fetching media...', 'info');
+    startDownload();
 
     try {
       console.log('[R34 Tools] Fetching post page HTML...');
-      const response = await fetchWithRetry(postUrl);
+      const response = await fetchWithCoordinatedBackoff(postUrl);
 
       if (!response.ok) {
         console.error('[R34 Tools] Fetch failed:', response.status, response.statusText);
@@ -105,16 +374,17 @@
 
       if (dlResponse.success) {
         console.log('[R34 Tools] Download queued successfully');
+        completeDownload();
         // Notification will be sent by background script queue system
         return true;
       } else {
         console.error('[R34 Tools] Download failed:', dlResponse.error);
+        completeDownload();
         showNotification(`Download failed: ${dlResponse.error}`, 'error');
         return false;
       }
     } catch (error) {
-      console.error('[R34 Tools] Exception in downloadFromThumbnail:', error);
-      showNotification(`Error: ${error.message}`, 'error');
+      console.error('[R34 Tools] Exception in downloadFromThumbnail:', error);      completeDownload();      showNotification(`Error: ${error.message}`, 'error');
       return false;
     }
   }
@@ -274,7 +544,7 @@
   // Listen for download notifications from background script
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === 'downloadNotification') {
-      const { type, filename, delay, attempts, maxAttempts } = message;
+      const { type, filename, delay, attempts, maxAttempts, pausedCount, backoffSeconds } = message;
 
       switch (type) {
         case 'retrying':
@@ -299,6 +569,13 @@
             'error'
           );
           break;
+
+        case 'rateLimitPause':
+          showNotification(
+            `Rate limited - paused ${pausedCount} download${pausedCount !== 1 ? 's' : ''}\nResuming in ${backoffSeconds}s...`,
+            'info'
+          );
+          break;
       }
     }
   });
@@ -309,5 +586,6 @@
   window.R34Tools.savePageData = savePageData;
   window.R34Tools.handleThumbnailDownloadClick = handleThumbnailDownloadClick;
   window.R34Tools.handleThumbnailFullResClick = handleThumbnailFullResClick;
+  window.R34Tools.setTotalDownloads = setTotalDownloads;
 
 })();
