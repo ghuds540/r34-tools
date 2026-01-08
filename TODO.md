@@ -60,3 +60,21 @@ save page other than tag add to database and storage
 introduce actions tracking (times downloaded, times seen post, pages saved, videos played, pages visited, times expanded posts, searches, can see stuff over time as well)
 
 could add 7tv style socials to comments and profiles
+
+default video volume might not be setting unless we have auto play thing on
+
+handle gateway timeouts with backoff
+
+batch download page not displaying the "loading" and checks properly (no checks at all). seems to also be hiding some notifications about what its doing, and when i changed pages and then came back it appeared to not complete the original page, but maybe that was just a rate limit backoff thing
+
+heart tags and artists. "follow" artists and there is a following feed that displays only things tagged by artists you follow
+
+resolution is gone from search page entries!
+
+when you focus tab, re-check all of the saved post and tag bookmarks to update visually
+
+when i click download all it doesnt mark them as it goes i have to refresh
+
+queue stuff is really buggy and broken, ton of edge cases where it will incrememnt left side but not right or increment wrong, i also feel like the persist logic seems wrong because it feels shaky to start downloads and then close tab or switch pages
+
+bug on accounts like dagasi post page first image which is advertisement gets the hover stuff not the real post

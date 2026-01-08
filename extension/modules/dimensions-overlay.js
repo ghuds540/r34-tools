@@ -14,6 +14,79 @@
   // Cache for dimensions to avoid re-fetching
   const dimensionsCache = new WeakMap();
 
+  // Cache postId -> media dimensions (used mainly for list/search thumbnails)
+  const postDimensionsCache = new Map();
+  const postDimensionsInFlight = new Map();
+
+  function isListPageUrl() {
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('page') === 'post' && url.searchParams.get('s') === 'list';
+    } catch {
+      return window.location.href.includes('page=post&s=list');
+    }
+  }
+
+  function getPostIdForWrapper(wrapper, mediaElement) {
+    const direct = wrapper?.dataset?.postId;
+    if (direct) return direct;
+
+    try {
+      const postLink = findPostLink ? findPostLink(mediaElement) : null;
+      const href = postLink?.href;
+      if (!href) return null;
+      return extractPostId ? extractPostId(href) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchPostDimensionsViaDapi(postId) {
+    if (!postId) return null;
+    if (postDimensionsCache.has(postId)) return postDimensionsCache.get(postId);
+    if (postDimensionsInFlight.has(postId)) return postDimensionsInFlight.get(postId);
+
+    const promise = (async () => {
+      try {
+        // Use same-origin DAPI endpoint to avoid CORS issues in content scripts.
+        const url = new URL('/index.php', window.location.origin);
+        url.searchParams.set('page', 'dapi');
+        url.searchParams.set('s', 'post');
+        url.searchParams.set('q', 'index');
+        url.searchParams.set('id', String(postId));
+        url.searchParams.set('json', '1');
+
+        const response = await fetch(url.toString());
+        if (!response.ok) return null;
+
+        const data = await response.json();
+
+        // Expected shapes vary; normalize to "post" object.
+        const post = Array.isArray(data)
+          ? data[0]
+          : (Array.isArray(data?.post) ? data.post[0] : (data?.post || data));
+
+        const width = Number(post?.width || 0);
+        const height = Number(post?.height || 0);
+        const fileUrl = String(post?.file_url || post?.file || '');
+        const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(fileUrl);
+
+        if (!width || !height) return null;
+
+        const result = { width, height, isVideo };
+        postDimensionsCache.set(postId, result);
+        return result;
+      } catch {
+        return null;
+      } finally {
+        postDimensionsInFlight.delete(postId);
+      }
+    })();
+
+    postDimensionsInFlight.set(postId, promise);
+    return promise;
+  }
+
   /**
    * Check if video has audio
    * @param {HTMLVideoElement} video - Video element
@@ -84,11 +157,8 @@
     const settings = await window.R34Tools.settingsManager.getAll();
     if (!settings.showMediaDimensions) return;
 
-    // On list pages, don't show WxH for image thumbnails.
-    // Videos still benefit from the XXXp + 🔊 indicator.
-    const isListPage = window.location.href.includes('page=post&s=list') ||
-      window.location.href.includes('tags=');
-    if (isListPage && mediaElement?.tagName === 'IMG') return;
+    // Show dimensions on list/search pages as well.
+    // (Previously suppressed for IMG thumbnails, which also hid it for video thumbnails on search pages.)
 
     // Create dimensions badge (hidden by default)
     const dimensionsBadge = createDimensionsBadge(wrapper, mediaElement);
@@ -105,6 +175,8 @@
     let isHovering = false;
     let dimensionsLoaded = false;
 
+    let hoverFetchTimeoutId = null;
+
     // Position badge relative to media on show
     const updatePosition = () => {
       repositionDimensionsBadge(wrapper, mediaElement);
@@ -115,10 +187,49 @@
       isHovering = true;
       updatePosition();
       dimensionsBadge.style.opacity = '1';
+
+      if (hoverFetchTimeoutId) {
+        clearTimeout(hoverFetchTimeoutId);
+        hoverFetchTimeoutId = null;
+      }
       
       // Get current dimensions
       if (!dimensionsLoaded || !dimensionsCache.has(mediaElement)) {
-        const dimensions = getCurrentDimensions(mediaElement);
+        let dimensions = getCurrentDimensions(mediaElement);
+
+        // On search/list pages, thumbnails are low-res; prefer real media dimensions via DAPI.
+        // This also enables proper "1080p" style labels for video thumbnails.
+        if (isListPageUrl() && mediaElement?.tagName === 'IMG') {
+          const postId = getPostIdForWrapper(wrapper, mediaElement);
+          if (postId) {
+            dimensionsBadge.textContent = 'Loading...';
+
+            // Small hover delay so fast mouse movement doesn't spam requests.
+            hoverFetchTimeoutId = setTimeout(async () => {
+              hoverFetchTimeoutId = null;
+              if (!isHovering) return;
+
+              const remote = await fetchPostDimensionsViaDapi(postId);
+              if (!remote || !isHovering) return;
+
+              // Mark badge as video if the post is a video, even though the DOM element is an IMG thumbnail.
+              if (remote.isVideo) {
+                dimensionsBadge.dataset.mediaType = 'video';
+              }
+
+              const updated = {
+                width: remote.width,
+                height: remote.height,
+                // We can't reliably know audio from DAPI alone; default to muted emoji.
+                hasAudio: false
+              };
+
+              dimensionsCache.set(mediaElement, updated);
+              updateDimensionsBadge(dimensionsBadge, updated.width, updated.height, updated.hasAudio);
+              dimensionsLoaded = true;
+            }, 160);
+          }
+        }
         
         if (dimensions) {
           dimensionsCache.set(mediaElement, dimensions);
@@ -137,6 +248,10 @@
     // Hide badge on mouse leave
     wrapper.addEventListener('mouseleave', () => {
       isHovering = false;
+      if (hoverFetchTimeoutId) {
+        clearTimeout(hoverFetchTimeoutId);
+        hoverFetchTimeoutId = null;
+      }
       dimensionsBadge.style.opacity = '0';
     });
 
