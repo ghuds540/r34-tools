@@ -473,11 +473,9 @@
     // Check if indicator already exists
     if (document.querySelector('.r34-postPage-indicator')) return;
 
-    // Find the main media element on post pages (match content.js robustness)
-    const { safeQuerySelector, SELECTORS } = window.R34Tools || {};
-    let mediaElement = safeQuerySelector && SELECTORS?.imageElement
-      ? safeQuerySelector(SELECTORS.imageElement)
-      : document.querySelector('#image, img.img, .flexi img, video, #gelcomVideoPlayer');
+    // Find the main media element on post pages.
+    // Some posts (gelcom/fluid) inject the <video> late, so wait briefly.
+    let mediaElement = await waitForPostMediaElement(5000);
     if (!mediaElement) return false;
 
     // If we matched a container (e.g. gelcom wrapper), drill to the actual video
@@ -590,6 +588,106 @@
     return true;
   }
 
+  function parseR34Location(href) {
+    try {
+      const url = new URL(href);
+      const page = url.searchParams.get('page') || '';
+      const s = url.searchParams.get('s') || '';
+      return { page, s };
+    } catch {
+      return { page: '', s: '' };
+    }
+  }
+
+  async function ensureDownloadedPostPageIndicator({ timeoutMs = 8000 } = {}) {
+    const { extractPostId, DownloadTracker } = window.R34Tools || {};
+    if (!extractPostId || !DownloadTracker?.isDownloaded) return false;
+
+    const postId = extractPostId(window.location.href);
+    if (!postId) return false;
+
+    const isDownloaded = await DownloadTracker.isDownloaded(postId);
+    if (!isDownloaded) return false;
+
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      // If already present, we are done.
+      if (document.querySelector('.r34-postPage-indicator')) return true;
+
+      const ok = await addPostPageIndicator(postId, 'success');
+      if (ok) return true;
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    return false;
+  }
+
+  function startPostPageIndicatorWatcher() {
+    // Avoid stacking observers across re-inits.
+    if (document.documentElement.dataset.r34PostIndicatorWatcher === 'true') return;
+    document.documentElement.dataset.r34PostIndicatorWatcher = 'true';
+
+    let lastHref = window.location.href;
+    let stopped = false;
+
+    const stop = () => {
+      stopped = true;
+      try { observer.disconnect(); } catch {}
+      try { clearInterval(urlPoll); } catch {}
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('load', onLoad);
+    };
+
+    let scheduled = false;
+    const kick = () => {
+      if (stopped || scheduled) return;
+      scheduled = true;
+      setTimeout(async () => {
+        scheduled = false;
+        const ok = await ensureDownloadedPostPageIndicator({ timeoutMs: 8000 });
+        if (ok) {
+          // Keep the watcher around for a short window; gelcom/fluid can rebuild DOM.
+          setTimeout(() => stop(), 15000);
+        }
+      }, 0);
+    };
+
+    const onLoad = () => kick();
+    const onVisibility = () => {
+      if (!document.hidden) kick();
+    };
+
+    window.addEventListener('load', onLoad);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const observer = new MutationObserver(() => kick());
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      // In case we're extremely early
+      document.addEventListener('DOMContentLoaded', () => {
+        if (!stopped && document.body) {
+          observer.observe(document.body, { childList: true, subtree: true });
+        }
+        kick();
+      }, { once: true });
+    }
+
+    // URL-change safety net (for any history API navigation)
+    const urlPoll = setInterval(() => {
+      if (stopped) return;
+      if (window.location.href !== lastHref) {
+        lastHref = window.location.href;
+        // Reset the “already inserted” check on navigation; try again.
+        kick();
+      }
+    }, 500);
+
+    // Initial attempt
+    kick();
+  }
+
   /**
    * Scan and mark downloaded thumbnails on list pages
    */
@@ -651,11 +749,6 @@
 
     const isDownloaded = await DownloadTracker.isDownloaded(postId);
     if (isDownloaded) {
-      // On some post pages (e.g. gelcom/fluid player), the media element is injected late.
-      // Wait briefly so the indicator reliably appears after refresh/navigation.
-      const media = await waitForPostMediaElement(5000);
-      if (!media) return;
-
       const ok = await addPostPageIndicator(postId);
       if (ok) {
         console.log(`[R34 Tools] Marked post ${postId} as downloaded`);
@@ -676,15 +769,17 @@
       return; // Don't show indicators if tracking is disabled
     }
 
-    // Check if we're on a list page or post page
-    const isListPage = window.location.href.includes('page=post&s=list') || 
-                       window.location.href.includes('tags=');
-    const isPostPage = window.location.href.includes('page=post&s=view');
+    // Check if we're on a list page or post page (do NOT key off tags=; post pages can include tags)
+    const { page, s } = parseR34Location(window.location.href);
+    const isListPage = page === 'post' && s === 'list';
+    const isPostPage = page === 'post' && s === 'view';
 
     if (isListPage) {
       await markDownloadedThumbnails();
     } else if (isPostPage) {
       await markDownloadedPostPage();
+      // Ensure badge appears even if media/player injects late or the DOM is rebuilt.
+      startPostPageIndicatorWatcher();
     }
   }
 
