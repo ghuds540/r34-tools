@@ -1901,6 +1901,13 @@
     await addThumbnailDownloadButtons();
     await upgradeToSampleQuality();
 
+    // Initialize download indicators
+    const { initializeIndicators, watchForNewThumbnails } = window.R34Tools;
+    if (initializeIndicators) {
+      await initializeIndicators();
+      watchForNewThumbnails();
+    }
+
     // Watch for new content
     watchForNewImages();
 

@@ -243,6 +243,32 @@
       </div>
     </section>
 
+    <section class="settings-section">
+      <h2>Download Tracking</h2>
+
+      <div class="setting-item">
+        <label class="checkbox-label">
+          <input type="checkbox" id="enableDownloadTracking">
+          <span>Track downloaded posts</span>
+        </label>
+        <p class="help-text">Keep a history of downloaded posts and show visual indicators on thumbnails and post pages</p>
+      </div>
+
+      <div class="setting-item">
+        <label>Show downloaded indicator</label>
+        <select id="downloadIndicatorVisibility">
+          <option value="always">Always visible</option>
+          <option value="hover">Show on hover only</option>
+        </select>
+        <p class="help-text">When to display the green checkmark on downloaded posts</p>
+      </div>
+
+      <div class="setting-item">
+        <button id="clearDownloadHistory" class="btn btn-danger">Clear Download History</button>
+        <p class="help-text">Remove all tracked download history from storage (requires confirmation)</p>
+      </div>
+    </section>
+
     <div class="footer">
       <button id="resetSettings" class="btn btn-secondary">Reset to Defaults</button>
       <div id="status" class="status"></div>

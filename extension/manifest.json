@@ -31,6 +31,8 @@
         "modules/media-extractor.js",
         "modules/ui-components.js",
         "modules/dimensions-overlay.js",
+        "modules/download-tracker.js",
+        "modules/download-indicators.js",
         "modules/download-handler.js",
         "content.js"
       ],

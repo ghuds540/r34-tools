@@ -303,19 +303,70 @@
       const filename = extractor.buildFilename(mediaUrl, postId, artists);
       console.log('[R34 Tools] Generated filename:', filename);
 
+      // Check if tracking is enabled and show downloading indicator BEFORE sending download request
+      const settings = await browser.storage.local.get({ enableDownloadTracking: true });
+      
+      if (settings.enableDownloadTracking) {
+        // Show downloading indicator immediately
+        const { showDownloadingIndicator } = window.R34Tools;
+        if (showDownloadingIndicator) {
+          const isPostPage = window.location.href.includes('page=post&s=view');
+          if (!isPostPage) {
+            // Find the thumbnail for this post
+            const thumbnailLink = document.querySelector(`a[href*="id=${postId}"]`);
+            if (thumbnailLink) {
+              const thumbnail = thumbnailLink.querySelector('img');
+              if (thumbnail) {
+                await showDownloadingIndicator(postId, thumbnail);
+              }
+            }
+          } else {
+            // On post page, add downloading indicator
+            const { addPostPageIndicator } = window.R34Tools;
+            if (addPostPageIndicator) {
+              await addPostPageIndicator(postId, 'downloading');
+            }
+          }
+        }
+      }
+
       console.log('[R34 Tools] Sending download request to background script...');
       const dlResponse = await browser.runtime.sendMessage({
         action: 'download',
         url: mediaUrl,
-        filename: filename
+        filename: filename,
+        postId: postId // Include post ID for tracking
       });
 
       if (dlResponse.success) {
         console.log('[R34 Tools] Download queued successfully');
+        
+        if (settings.enableDownloadTracking) {
+          // Mark as downloaded and update indicator to success
+          const { DownloadTracker, showSuccessIndicator } = window.R34Tools;
+          if (DownloadTracker) {
+            await DownloadTracker.markAsDownloaded(postId);
+            
+            // Update indicator to success state
+            if (showSuccessIndicator) {
+              await showSuccessIndicator(postId);
+            }
+          }
+        }
+        
         // Notification will be sent by background script queue system
         return true;
       } else {
         console.error('[R34 Tools] Download failed:', dlResponse.error);
+        
+        if (settings.enableDownloadTracking) {
+          // Update indicator to failed state
+          const { showFailedIndicator } = window.R34Tools;
+          if (showFailedIndicator) {
+            await showFailedIndicator(postId);
+          }
+        }
+        
         showNotification(`Download failed: ${dlResponse.error}`, 'error');
         return false;
       }

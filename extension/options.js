@@ -48,6 +48,8 @@ async function loadSettings() {
     autoPauseOnTabLeave: false,
     autoUnmuteOnInteraction: false,
     defaultVideoVolume: 0.5,
+    enableDownloadTracking: true,
+    downloadIndicatorVisibility: 'always',
     theaterMode: false,
     centerAlignContent: false,
     centerAlignListContent: false,
@@ -81,6 +83,8 @@ async function loadSettings() {
   document.getElementById('theaterMode').checked = settings.theaterMode;
   document.getElementById('centerAlignContent').checked = settings.centerAlignContent;
   document.getElementById('centerAlignListContent').checked = settings.centerAlignListContent;
+  document.getElementById('enableDownloadTracking').checked = settings.enableDownloadTracking;
+  document.getElementById('downloadIndicatorVisibility').value = settings.downloadIndicatorVisibility;
 
   if (settings.downloadKey) {
     document.getElementById('currentDownloadKey').textContent = settings.downloadKey;
@@ -157,6 +161,20 @@ function setupEventListeners() {
   document.getElementById('centerAlignListContent').addEventListener('change', autoSaveSettings);
   document.getElementById('autoRetryDownloads').addEventListener('change', autoSaveSettings);
   document.getElementById('maxDownloadRetries').addEventListener('change', autoSaveSettings);
+  document.getElementById('enableDownloadTracking').addEventListener('change', autoSaveSettings);
+  document.getElementById('downloadIndicatorVisibility').addEventListener('change', autoSaveSettings);
+
+  // Clear download history button
+  document.getElementById('clearDownloadHistory').addEventListener('click', async () => {
+    if (confirm('Are you sure you want to clear all download history? This cannot be undone.')) {
+      try {
+        await browser.storage.local.remove('r34_downloaded_posts');
+        showStatus('Download history cleared successfully!', 'success');
+      } catch (error) {
+        showStatus('Failed to clear download history: ' + error.message, 'error');
+      }
+    }
+  });
 
   // Volume slider - update display and save
   document.getElementById('defaultVideoVolume').addEventListener('input', (e) => {
@@ -385,7 +403,9 @@ async function autoSaveSettings() {
     centerAlignContent: document.getElementById('centerAlignContent').checked,
     centerAlignListContent: document.getElementById('centerAlignListContent').checked,
     autoRetryDownloads: document.getElementById('autoRetryDownloads').checked,
-    maxDownloadRetries: parseInt(document.getElementById('maxDownloadRetries').value)
+    maxDownloadRetries: parseInt(document.getElementById('maxDownloadRetries').value),
+    enableDownloadTracking: document.getElementById('enableDownloadTracking').checked,
+    downloadIndicatorVisibility: document.getElementById('downloadIndicatorVisibility').value
   };
 
   await browser.storage.local.set(settings);
@@ -421,7 +441,9 @@ async function resetSettings() {
     centerAlignListContent: false,
     autoRetryDownloads: true,
     maxDownloadRetries: 5,
-    initialRetryDelay: 1000
+    initialRetryDelay: 1000,
+    enableDownloadTracking: true,
+    downloadIndicatorVisibility: 'always'
   };
 
   await browser.storage.local.set(defaults);
