@@ -7,6 +7,46 @@
   // Get constants
   const { SELECTORS, BUTTON_STYLES, URL_PATTERNS, TIMINGS } = window.R34Tools;
 
+  function ensureOverlayContainers(wrapper) {
+    if (!wrapper) return {};
+
+    let controls = wrapper.querySelector('.r34-overlay-controls');
+    if (!controls) {
+      controls = document.createElement('div');
+      controls.className = 'r34-overlay-controls';
+      controls.style.cssText = `
+        position: absolute;
+        display: block;
+        z-index: 120;
+        width: 0;
+        height: 0;
+        pointer-events: auto;
+      `;
+      wrapper.appendChild(controls);
+    }
+
+    let badges = wrapper.querySelector('.r34-overlay-badges');
+    if (!badges) {
+      badges = document.createElement('div');
+      badges.className = 'r34-overlay-badges';
+      badges.style.cssText = `
+        position: absolute;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 4px;
+        z-index: 119;
+        pointer-events: none;
+      `;
+      wrapper.appendChild(badges);
+    }
+
+    return { controls, badges };
+  }
+
   /**
    * Find the post link associated with a thumbnail image
    * Tries multiple strategies to locate the link
@@ -92,24 +132,37 @@
     const offsetLeft = (mediaRect.left - containerRect.left) / scale;
     const offsetRight = (containerRect.right - mediaRect.right) / scale;
 
-    if (downloadBtn) {
+    // Position shared overlay containers over the media bounds
+    const { controls, badges } = ensureOverlayContainers(wrapper);
+    if (controls) {
+      controls.style.top = `${offsetTop}px`;
+      controls.style.left = `${offsetLeft}px`;
+    }
+    if (badges) {
+      badges.style.top = `${offsetTop}px`;
+      badges.style.right = `${offsetRight}px`;
+    }
+
+    // Back-compat: if a consumer still appends elements directly to wrapper,
+    // keep them positioned relative to media bounds.
+    if (downloadBtn && downloadBtn.parentElement !== controls) {
       downloadBtn.style.top = (offsetTop + BUTTON_STYLES.download.top) + 'px';
       downloadBtn.style.left = (offsetLeft + BUTTON_STYLES.download.left) + 'px';
     }
-
-    if (fullResBtn) {
+    if (fullResBtn && fullResBtn.parentElement !== controls) {
       fullResBtn.style.top = (offsetTop + BUTTON_STYLES.fullRes.top) + 'px';
       fullResBtn.style.left = (offsetLeft + BUTTON_STYLES.fullRes.left) + 'px';
     }
-
-    if (goToPostBtn) {
+    if (goToPostBtn && goToPostBtn.parentElement !== controls) {
       goToPostBtn.style.top = (offsetTop + BUTTON_STYLES.goToPost.top) + 'px';
       goToPostBtn.style.left = (offsetLeft + BUTTON_STYLES.goToPost.left) + 'px';
     }
 
-    if (qualityBadge) {
-      qualityBadge.style.top = (offsetTop + BUTTON_STYLES.qualityBadge.top) + 'px';
-      qualityBadge.style.right = (offsetRight + BUTTON_STYLES.qualityBadge.right) + 'px';
+    if (qualityBadge && qualityBadge.parentElement !== badges) {
+      if (qualityBadge.style.position === 'absolute') {
+        qualityBadge.style.top = (offsetTop + BUTTON_STYLES.qualityBadge.top) + 'px';
+        qualityBadge.style.right = (offsetRight + BUTTON_STYLES.qualityBadge.right) + 'px';
+      }
     }
   }
 
@@ -216,12 +269,6 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Debounce function - limits how often a function can be called
-   * @param {Function} func - Function to debounce
-   * @param {number} wait - Milliseconds to wait
-   * @returns {Function} Debounced function
-   */
   function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -321,6 +368,7 @@
   window.R34Tools.positionButtonsForMedia = positionButtonsForMedia;
   window.R34Tools.createButtonHoverHandlers = createButtonHoverHandlers;
   window.R34Tools.attachButtonHoverHandlers = attachButtonHoverHandlers;
+  window.R34Tools.ensureOverlayContainers = ensureOverlayContainers;
   window.R34Tools.delay = delay;
   window.R34Tools.debounce = debounce;
   window.R34Tools.safeQuerySelector = safeQuerySelector;

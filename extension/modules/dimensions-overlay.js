@@ -61,81 +61,17 @@
     return null;
   }
 
-  /**
-   * Position badge relative to media element and quality badge
-   * Places it to the left of quality badge, or underneath if not enough space
-   * @param {HTMLDivElement} badge - Badge element
-   * @param {HTMLElement} mediaElement - Image or video element
-   * @param {HTMLElement} wrapper - Wrapper container
-   */
-  function positionBadgeToMedia(badge, mediaElement, wrapper) {
-    // Find quality badge and buttons
-    const qualityBadge = wrapper.querySelector(`.${CLASS_NAMES.qualityBadge}`);
-    const downloadBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbDownload}`);
-    const fullResBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbFullRes}`);
-    
-    if (!qualityBadge) return;
-    
-    // Find the thumbnail container (span.thumb) to check for scaling
-    let thumbContainer = wrapper.closest('.thumb, .thumbnail, span.thumb');
-    let scale = 1.0;
-    
-    // Check if the thumbnail container has a transform scale applied
-    if (thumbContainer) {
-      const transform = window.getComputedStyle(thumbContainer).transform;
-      if (transform && transform !== 'none') {
-        // Extract scale from matrix (matrix(scaleX, 0, 0, scaleY, 0, 0))
-        const matrixMatch = transform.match(/matrix\(([^,]+),/);
-        if (matrixMatch) {
-          scale = parseFloat(matrixMatch[1]) || 1.0;
-        }
-      }
-    }
-    
-    // Get actual positions relative to viewport
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const mediaRect = mediaElement.getBoundingClientRect();
-    
-    // Calculate media position within wrapper and compensate for scale
-    const mediaTopOffset = (mediaRect.top - wrapperRect.top) / scale;
-    const mediaRightOffset = (wrapperRect.right - mediaRect.right) / scale;
-    
-    // Get dimensions badge width (needs to be visible to measure)
-    const wasVisible = badge.style.opacity !== '0';
-    const originalOpacity = badge.style.opacity;
-    badge.style.opacity = '1';
-    badge.style.visibility = 'hidden';
-    const badgeWidth = badge.offsetWidth;
-    badge.style.visibility = '';
-    if (!wasVisible) badge.style.opacity = originalOpacity;
-    
-    // Quality badge dimensions
-    const qualityBadgeWidth = qualityBadge.offsetWidth;
-    const qualityBadgeHeight = qualityBadge.offsetHeight;
-    
-    // Position relative to media element's top-right
-    const topOffset = mediaTopOffset + 4;
-    const baseRightOffset = mediaRightOffset + 4;
-    
-    // Calculate position to left of quality badge with 6px gap
-    const leftOfQualityPos = baseRightOffset + qualityBadgeWidth + 6;
-    
-    // Check if dimensions badge would collide with buttons (left side)
-    // Buttons are at top-left (downloadBtn at 4px, fullResBtn at 36px)
-    const buttonRightEdge = 36 + 28 + 4; // fullResBtn left + width + margin
-    const mediaWidth = mediaRect.width / scale; // Divide by scale to get unscaled width
-    const hasSpaceOnLeft = (mediaWidth - qualityBadgeWidth - badgeWidth - 14) >= buttonRightEdge;
-    
-    if (hasSpaceOnLeft) {
-      // Position to left of quality badge
-      badge.style.top = `${topOffset}px`;
-      badge.style.right = `${leftOfQualityPos}px`;
-      badge.style.bottom = 'auto';
-    } else {
-      // Position underneath quality badge
-      badge.style.top = `${topOffset + qualityBadgeHeight + 4}px`;
-      badge.style.right = `${baseRightOffset}px`;
-      badge.style.bottom = 'auto';
+
+  function repositionDimensionsBadge(wrapper, mediaElement) {
+    // Dimensions badge layout is handled by the shared badges container; this is
+    // kept as a no-op-ish helper for callers that want to trigger a refresh.
+    if (!wrapper || !mediaElement) return;
+    if (window.R34Tools?.positionButtonsForMedia) {
+      const downloadBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbDownload}`);
+      const fullResBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbFullRes}`);
+      const qualityBadge = wrapper.querySelector(`.${CLASS_NAMES.qualityBadge}`);
+      const goToPostBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbGoToPost}`);
+      window.R34Tools.positionButtonsForMedia(wrapper, mediaElement, downloadBtn, fullResBtn, qualityBadge, goToPostBtn);
     }
   }
 
@@ -150,13 +86,22 @@
 
     // Create dimensions badge (hidden by default)
     const dimensionsBadge = createDimensionsBadge(wrapper, mediaElement);
+
+    // Place into shared top-right badges container if available
+    const { ensureOverlayContainers } = window.R34Tools;
+    const { badges } = ensureOverlayContainers ? ensureOverlayContainers(wrapper) : {};
+    if (badges) {
+      badges.insertBefore(dimensionsBadge, badges.firstChild);
+    } else {
+      wrapper.appendChild(dimensionsBadge);
+    }
     
     let isHovering = false;
     let dimensionsLoaded = false;
 
     // Position badge relative to media on show
     const updatePosition = () => {
-      positionBadgeToMedia(dimensionsBadge, mediaElement, wrapper);
+      repositionDimensionsBadge(wrapper, mediaElement);
     };
 
     // Show badge on hover
@@ -242,5 +187,6 @@
   window.R34Tools.setupDimensionsOverlay = setupDimensionsOverlay;
   window.R34Tools.setupVideoDimensionsOverlay = setupVideoDimensionsOverlay;
   window.R34Tools.dimensionsCache = dimensionsCache;
+  window.R34Tools.repositionDimensionsBadge = repositionDimensionsBadge;
 
 })();

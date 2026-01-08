@@ -208,9 +208,7 @@
     const badge = document.createElement('div');
     badge.className = CLASS_NAMES.dimensionsBadge;
     badge.style.cssText = `
-      position: absolute;
-      bottom: 4px;
-      right: 4px;
+      position: relative;
       padding: 5px 9px;
       background: rgba(0, 0, 0, 0.9);
       color: #ffffff;
@@ -229,8 +227,7 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     `;
     badge.textContent = 'Loading...';
-    
-    wrapper.appendChild(badge);
+
     return badge;
   }
 
@@ -457,9 +454,7 @@
     const qualityBadge = document.createElement('div');
     qualityBadge.className = CLASS_NAMES.qualityBadge;
     qualityBadge.style.cssText = `
-      position: absolute;
-      top: ${top}px;
-      right: ${right}px;
+      position: relative;
       width: ${width}px;
       height: ${height}px;
       border-radius: 3px;
@@ -585,15 +580,27 @@
   async function setupThumbnailButtons(img, postLink) {
     const { positionButtonsForMedia, createButtonHoverHandlers, attachButtonHoverHandlers } = window.R34Tools;
     const { createBadgeUpdater } = window.R34Tools;
+    const { ensureOverlayContainers } = window.R34Tools;
 
     const wrapper = createThumbnailWrapper(img);
     const downloadBtn = await createDownloadButton();
     const fullResBtn = await createFullResButton();
     const qualityBadge = createQualityBadge();
 
-    wrapper.appendChild(downloadBtn);
-    wrapper.appendChild(fullResBtn);
-    wrapper.appendChild(qualityBadge);
+    const { controls, badges } = ensureOverlayContainers ? ensureOverlayContainers(wrapper) : {};
+    if (controls) {
+      controls.appendChild(downloadBtn);
+      controls.appendChild(fullResBtn);
+    } else {
+      wrapper.appendChild(downloadBtn);
+      wrapper.appendChild(fullResBtn);
+    }
+
+    if (badges) {
+      badges.appendChild(qualityBadge);
+    } else {
+      wrapper.appendChild(qualityBadge);
+    }
 
     const updateBadge = createBadgeUpdater(img, qualityBadge);
     updateBadge(); // Initialize badge

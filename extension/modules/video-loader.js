@@ -245,6 +245,7 @@
    */
   async function reattachButtonsToVideo(wrapper, video, postUrl = null) {
     const { createGoToPostButton, playClickSound } = window.R34Tools;
+    const { ensureOverlayContainers } = window.R34Tools;
 
     const downloadBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbDownload}`);
     const fullResBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbFullRes}`);
@@ -254,7 +255,12 @@
     let goToPostBtn = wrapper.querySelector(`.${CLASS_NAMES.thumbGoToPost}`);
     if (postUrl && !goToPostBtn) {
       goToPostBtn = await createGoToPostButton();
-      wrapper.appendChild(goToPostBtn);
+      const { controls } = ensureOverlayContainers ? ensureOverlayContainers(wrapper) : {};
+      if (controls) {
+        controls.appendChild(goToPostBtn);
+      } else {
+        wrapper.appendChild(goToPostBtn);
+      }
 
       // Add click handler to navigate to post page
       goToPostBtn.addEventListener('click', () => {

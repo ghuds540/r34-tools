@@ -10,9 +10,7 @@
   // Indicator styles
   const INDICATOR_STYLES = {
     thumbnail: {
-      position: 'absolute',
-      bottom: '4px',
-      right: '4px',
+      position: 'relative',
       width: '20px',
       height: '20px',
       backgroundColor: 'rgba(76, 175, 80, 0.9)',
@@ -22,8 +20,10 @@
       justifyContent: 'center',
       fontSize: '12px',
       color: 'white',
-      zIndex: '10',
+      zIndex: '102',
       pointerEvents: 'none',
+      textDecoration: 'none',
+      lineHeight: '1',
       boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
       border: '2px solid white'
     },
@@ -60,6 +60,9 @@
     
     const styles = INDICATOR_STYLES[type];
     Object.assign(indicator.style, styles);
+
+    // Prevent inherited underline from parent links
+    indicator.style.textDecoration = 'none';
 
     // State-specific colors
     if (state === 'downloading') {
@@ -286,19 +289,41 @@
       indicator.dataset.state = state;
       indicator.dataset.postId = postId;
       
-      // Apply only the visual styles, not positioning
+      // Apply visual styles (badge container handles placement)
       indicator.style.width = '20px';
       indicator.style.height = '20px';
       indicator.style.borderRadius = '50%';
+      indicator.style.position = 'relative';
       indicator.style.display = 'flex';
       indicator.style.alignItems = 'center';
       indicator.style.justifyContent = 'center';
       indicator.style.fontSize = '12px';
       indicator.style.color = 'white';
+      indicator.style.zIndex = '102';
+      indicator.style.pointerEvents = 'none';
+      indicator.style.textDecoration = 'none';
+      indicator.style.lineHeight = '1';
       indicator.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
       indicator.style.border = '2px solid white';
-      indicator.style.marginRight = '4px';
-      indicator.style.flexShrink = '0';
+
+      // Respect visibility setting
+      if (isHoverMode) {
+        indicator.style.opacity = '0';
+        indicator.style.transition = 'opacity 0.2s';
+
+        // Bind hover listeners once per wrapper
+        if (buttonWrapper.dataset.r34DownloadIndicatorHoverBound !== 'true') {
+          buttonWrapper.addEventListener('mouseenter', () => {
+            const el = buttonWrapper.querySelector('.r34-thumbnail-indicator');
+            if (el) el.style.opacity = '1';
+          });
+          buttonWrapper.addEventListener('mouseleave', () => {
+            const el = buttonWrapper.querySelector('.r34-thumbnail-indicator');
+            if (el) el.style.opacity = '0';
+          });
+          buttonWrapper.dataset.r34DownloadIndicatorHoverBound = 'true';
+        }
+      }
       
       // State-specific colors
       if (state === 'downloading') {
@@ -315,8 +340,46 @@
         indicator.title = 'Already downloaded';
       }
       
-      // Insert at the beginning of the button wrapper
-      buttonWrapper.insertBefore(indicator, buttonWrapper.firstChild);
+      // Prefer shared badges container (top-right over media bounds)
+      const { ensureOverlayContainers } = window.R34Tools || {};
+      const { badges } = ensureOverlayContainers ? ensureOverlayContainers(buttonWrapper) : {};
+      if (badges) {
+        badges.appendChild(indicator);
+      } else {
+        buttonWrapper.appendChild(indicator);
+      }
+
+      // Reposition related UI immediately so we don't overlap until re-hover
+      try {
+        const img = thumbnail?.tagName === 'IMG' ? thumbnail : buttonWrapper.querySelector('img');
+        const downloadBtn = buttonWrapper.querySelector('.r34-thumb-download');
+        const fullResBtn = buttonWrapper.querySelector('.r34-thumb-fullres');
+        const qualityBadge = buttonWrapper.querySelector('.r34-quality-badge');
+        const goToPostBtn = buttonWrapper.querySelector('.r34-thumb-gotopost');
+
+        if (img && window.R34Tools?.positionButtonsForMedia) {
+          window.R34Tools.positionButtonsForMedia(
+            buttonWrapper,
+            img,
+            downloadBtn,
+            fullResBtn,
+            qualityBadge,
+            goToPostBtn
+          );
+        }
+
+        if (img && window.R34Tools?.repositionDimensionsBadge) {
+          window.R34Tools.repositionDimensionsBadge(buttonWrapper, img);
+        }
+
+        // If we're currently hovered and visibility is hover-only, show immediately
+        if (isHoverMode && buttonWrapper.matches(':hover')) {
+          indicator.style.opacity = '1';
+        }
+      } catch (e) {
+        // Non-fatal: positioning is best-effort
+      }
+
       console.log('[R34 Download Indicators] Added indicator to button wrapper');
       return;
     }
