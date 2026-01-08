@@ -1607,11 +1607,100 @@
   async function addSaveIconsToLinks() {
     const settings = await settingsManager.getAll();
     const theme = getThemeColors(settings);
-    const tagLinks = safeQuerySelectorAll(SELECTORS.allTags);
+    const candidateLinks = Array.from(safeQuerySelectorAll(SELECTORS.allTags));
 
-    tagLinks.forEach(link => {
+    const { SavedPagesTracker, showNotification } = window.R34Tools || {};
+
+    const getPageTypeForLink = (link) => {
+      const container = link?.closest?.('li') || link?.parentElement;
+      const cls = container?.className || '';
+      const match = cls.match(/tag-type-([a-z0-9_-]+)/i);
+      return match ? match[1].toLowerCase() : 'tag';
+    };
+
+    const setSaveIconState = (saveIcon, saved) => {
+      const svg = saveIcon.querySelector('svg');
+      const paths = svg ? Array.from(svg.querySelectorAll('path')) : [];
+      saveIcon.dataset.saved = saved ? 'true' : 'false';
+
+      if (saved) {
+        // Use !important to beat site/theme CSS overrides
+        saveIcon.style.setProperty('color', COLORS.accent.green, 'important');
+        saveIcon.style.opacity = '1';
+        if (svg) {
+          svg.style.setProperty('color', 'inherit', 'important');
+
+          // Drive fill/stroke from currentColor, but enforce via inline !important
+          svg.setAttribute('stroke', 'currentColor');
+          svg.setAttribute('fill', 'currentColor');
+          for (const p of paths) {
+            p.style.setProperty('stroke', 'currentColor', 'important');
+            p.style.setProperty('fill', 'currentColor', 'important');
+          }
+        }
+      } else {
+        saveIcon.style.setProperty('color', theme.primary, 'important');
+        saveIcon.style.opacity = '0.5';
+        if (svg) {
+          svg.style.setProperty('color', 'inherit', 'important');
+          svg.setAttribute('stroke', 'currentColor');
+          svg.setAttribute('fill', 'none');
+          for (const p of paths) {
+            p.style.setProperty('stroke', 'currentColor', 'important');
+            p.style.setProperty('fill', 'none', 'important');
+          }
+        }
+      }
+    };
+
+    const getTagContainer = (link) => {
+      return link?.closest?.('li[class*="tag-type"], .tag') || link?.parentElement;
+    };
+
+    const scoreTagLink = (link) => {
+      if (!link) return -999;
+      const text = (link.textContent || '').trim();
+      if (!text || text === '?' || text === '+' || text === '-') return -999;
+
+      let score = 0;
+      const href = link.href || '';
+      const onclick = link.getAttribute('onclick') || '';
+
+      // Prefer the main tag link, not wiki/help or +/- search helpers
+      if (!href.includes('page=wiki')) score += 5;
+      if (!onclick) score += 3;
+      if (!onclick.includes('value +=')) score += 3;
+      if (href.includes('tags=')) score += 2;
+      if (href.includes('page=post') && href.includes('s=list')) score += 1;
+
+      return score;
+    };
+
+    // Pick ONE primary link per tag container so we don't bind to '?' '+' '-' anchors
+    const containerToPrimaryLink = new Map();
+    for (const link of candidateLinks) {
+      const container = getTagContainer(link);
+      if (!container) continue;
+
+      const currentBest = containerToPrimaryLink.get(container);
+      if (!currentBest || scoreTagLink(link) > scoreTagLink(currentBest)) {
+        containerToPrimaryLink.set(container, link);
+      }
+    }
+
+    const tagLinks = Array.from(containerToPrimaryLink.values()).filter(l => scoreTagLink(l) > 0);
+
+    // Preload saved states in one shot for performance
+    let savedLookup = {};
+    if (SavedPagesTracker?.checkMultiple) {
+      const urls = tagLinks.map(l => l?.href).filter(Boolean);
+      savedLookup = await SavedPagesTracker.checkMultiple(urls);
+    }
+
+    for (const link of tagLinks) {
       const parent = link.parentElement;
-      if (parent.querySelector(`.${CLASS_NAMES.saveLinkIcon}`)) return;
+      if (!parent) continue;
+      if (parent.querySelector(`.${CLASS_NAMES.saveLinkIcon}`)) continue;
 
       const saveIcon = document.createElement('span');
       saveIcon.className = CLASS_NAMES.saveLinkIcon;
@@ -1630,18 +1719,84 @@
         color: ${theme.primary};
       `;
 
-      saveIcon.onmouseover = () => saveIcon.style.opacity = '1';
-      saveIcon.onmouseout = () => saveIcon.style.opacity = '0.5';
+      // Initial state
+      const pageUrl = link.href;
+      const pageKey = SavedPagesTracker?.getPageKey ? SavedPagesTracker.getPageKey(pageUrl) : pageUrl;
+      const isSaved = Boolean(savedLookup[pageKey]);
+      setSaveIconState(saveIcon, isSaved);
 
-      saveIcon.onclick = (e) => {
+      saveIcon.onmouseover = () => {
+        saveIcon.style.opacity = '1';
+      };
+      saveIcon.onmouseout = () => {
+        if (saveIcon.dataset.saved !== 'true') saveIcon.style.opacity = '0.5';
+      };
+
+      saveIcon.onclick = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        savePageData();
+
+        if (saveIcon.dataset.busy === 'true') return;
+        saveIcon.dataset.busy = 'true';
+
+        try {
+          const currentlySaved = saveIcon.dataset.saved === 'true';
+          const label = (link.textContent || '').trim() || null;
+          const pageType = getPageTypeForLink(link);
+
+          if (currentlySaved) {
+            // Remove bookmark: only clear from browser storage (no disk deletion)
+            if (SavedPagesTracker?.unmarkSaved) {
+              await SavedPagesTracker.unmarkSaved(pageUrl);
+            }
+            setSaveIconState(saveIcon, false);
+            if (showNotification) showNotification(`Removed bookmark\n→ ${label || pageUrl}`, 'info');
+            return;
+          }
+
+          // Save bookmark: keep normal operation (write JSON to disk)
+          setSaveIconState(saveIcon, true); // optimistic UI
+
+          const data = {
+            url: pageUrl,
+            timestamp: new Date().toISOString(),
+            pageType,
+            label,
+            sourcePage: window.location.href
+          };
+
+          const response = await browser.runtime.sendMessage({
+            action: 'savePageJson',
+            data
+          });
+
+          if (response && response.success) {
+            if (SavedPagesTracker?.markSaved) {
+              await SavedPagesTracker.markSaved(pageUrl, {
+                url: pageUrl,
+                label,
+                pageType
+              });
+            }
+            setSaveIconState(saveIcon, true);
+            if (showNotification) showNotification(`Saved bookmark\n→ ${response.filename}`, 'success');
+          } else {
+            // Revert on failure
+            setSaveIconState(saveIcon, false);
+            if (showNotification) showNotification(`Save failed: ${response?.error || 'Unknown error'}`, 'error');
+          }
+        } catch (err) {
+          console.error('[R34 Tools] Bookmark toggle failed:', err);
+          setSaveIconState(saveIcon, false);
+          if (showNotification) showNotification(`Error: ${err.message}`, 'error');
+        } finally {
+          saveIcon.dataset.busy = 'false';
+        }
       };
 
       // Insert at the beginning of the parent (before ? + - links)
       parent.insertBefore(saveIcon, parent.firstChild);
-    });
+    }
   }
 
   // =============================================================================

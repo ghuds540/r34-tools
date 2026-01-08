@@ -444,6 +444,20 @@
       if (response && response.success) {
         const info = extractor.postId ? `Post ${extractor.postId}` : 'Page';
         showNotification(`Saved ${info}\n→ ${response.filename}`, 'success');
+
+        try {
+          const { SavedPagesTracker } = window.R34Tools || {};
+          if (SavedPagesTracker?.markSaved) {
+            await SavedPagesTracker.markSaved(window.location.href, {
+              url: window.location.href,
+              label: document.title || null,
+              pageType: extractor.postId ? 'post' : 'page'
+            });
+          }
+        } catch (e) {
+          console.warn('[R34 Tools] Failed to mark page as saved:', e);
+        }
+
         return true;
       } else {
         showNotification(`Save failed: ${response?.error || 'Unknown error'}`, 'error');

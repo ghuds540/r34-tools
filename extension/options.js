@@ -176,6 +176,18 @@ function setupEventListeners() {
     }
   });
 
+  // Clear saved bookmarks button
+  document.getElementById('clearSavedBookmarks').addEventListener('click', async () => {
+    if (confirm('Are you sure you want to clear all saved bookmarks? This cannot be undone.')) {
+      try {
+        await browser.storage.local.remove('r34_saved_pages');
+        showStatus('Saved bookmarks cleared successfully!', 'success');
+      } catch (error) {
+        showStatus('Failed to clear saved bookmarks: ' + error.message, 'error');
+      }
+    }
+  });
+
   // Volume slider - update display and save
   document.getElementById('defaultVideoVolume').addEventListener('input', (e) => {
     const value = e.target.value;

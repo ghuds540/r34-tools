@@ -32,6 +32,7 @@
         "modules/ui-components.js",
         "modules/dimensions-overlay.js",
         "modules/download-tracker.js",
+        "modules/saved-pages-tracker.js",
         "modules/download-indicators.js",
         "modules/download-handler.js",
         "content.js"
