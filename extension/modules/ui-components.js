@@ -250,16 +250,14 @@
                            height >= 1080 ? '1080p' :
                            height >= 720 ? '720p' :
                            height >= 480 ? '480p' : `${height}p`;
-    
-    const isVideo = height < 10000; // Videos typically < 8K, images can be much larger
-    const shouldShowResolution = isVideo && height >= 480;
-    
+
+    const mediaType = (badge?.dataset?.mediaType || '').toLowerCase();
+    const isVideoElement = mediaType === 'video';
+    const shouldShowResolution = isVideoElement && height >= 480;
+
     let text = shouldShowResolution ? resolutionLabel : `${width}×${height}`;
 
     // For videos, always show a speaker indicator so spacing is consistent.
-    // (Images should not show a speaker icon.)
-    const mediaType = (badge?.dataset?.mediaType || '').toLowerCase();
-    const isVideoElement = mediaType === 'video';
     if (isVideoElement && shouldShowResolution) {
       text += hasAudio ? ' 🔊' : ' 🔇';
     }

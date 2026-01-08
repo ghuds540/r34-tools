@@ -384,7 +384,7 @@
    */
   async function downloadFromCurrentPage() {
     const extractor = new Rule34Extractor();
-    extractor.extractPostId();
+    const postId = extractor.extractPostId();
 
     // Use retry mechanism to wait for page to fully load
     const mediaUrl = await extractor.extractMediaUrlWithRetry();
@@ -397,23 +397,67 @@
 
     const filename = extractor.getFilename();
 
+    // If tracking is enabled, show a downloading indicator on post pages immediately
+    const settings = await browser.storage.local.get({ enableDownloadTracking: true });
+    if (settings.enableDownloadTracking && postId) {
+      try {
+        const { addPostPageIndicator, updateIndicatorState } = window.R34Tools || {};
+        const isPostPage = window.location.href.includes('page=post&s=view');
+        if (isPostPage) {
+          // Ensure it exists, then set to downloading
+          if (addPostPageIndicator) {
+            await addPostPageIndicator(postId, 'downloading');
+          } else if (updateIndicatorState) {
+            await updateIndicatorState(postId, 'downloading');
+          }
+        }
+      } catch (e) {
+        // Non-fatal: indicator is best-effort
+      }
+    }
+
     try {
       const response = await browser.runtime.sendMessage({
         action: 'download',
         url: extractor.mediaUrl,
-        filename: filename
+        filename: filename,
+        postId: postId || undefined
       });
 
       if (response.success) {
         console.log('[R34 Tools] Download queued successfully');
+
+        if (settings.enableDownloadTracking && postId) {
+          const { DownloadTracker, showSuccessIndicator } = window.R34Tools || {};
+          if (DownloadTracker?.markAsDownloaded) {
+            await DownloadTracker.markAsDownloaded(postId);
+          }
+          if (showSuccessIndicator) {
+            await showSuccessIndicator(postId);
+          }
+        }
         // Notification will be sent by background script queue system
         return true;
       } else {
         showNotification(`Download failed: ${response.error}`, 'error');
+
+        if (settings.enableDownloadTracking && postId) {
+          const { showFailedIndicator } = window.R34Tools || {};
+          if (showFailedIndicator) {
+            await showFailedIndicator(postId);
+          }
+        }
         return false;
       }
     } catch (error) {
       showNotification(`Error: ${error.message}`, 'error');
+
+      if (settings.enableDownloadTracking && postId) {
+        const { showFailedIndicator } = window.R34Tools || {};
+        if (showFailedIndicator) {
+          await showFailedIndicator(postId);
+        }
+      }
       return false;
     }
   }

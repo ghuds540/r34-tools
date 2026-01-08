@@ -579,9 +579,19 @@
 
     wrapper.appendChild(downloadBtn);
 
-    // Create resolution/sound info badge
-    const infoBadge = document.createElement('div');
-    infoBadge.className = 'r34-post-info-badge';
+    // Create resolution/sound badge in the shared overlay badges container
+    const { ensureOverlayContainers, positionButtonsForMedia, createDimensionsBadge, updateDimensionsBadge } = window.R34Tools || {};
+    const { badges } = ensureOverlayContainers ? ensureOverlayContainers(wrapper) : {};
+    const dimensionsBadge = createDimensionsBadge ? createDimensionsBadge(wrapper, imageElement) : null;
+    if (dimensionsBadge) {
+      // Keep hidden until hover (matches other overlay behavior)
+      dimensionsBadge.style.opacity = '0';
+      if (badges) {
+        badges.appendChild(dimensionsBadge);
+      } else {
+        wrapper.appendChild(dimensionsBadge);
+      }
+    }
     
     // Get media dimensions and audio info
     const getMediaInfo = () => {
@@ -601,83 +611,67 @@
         };
       }
     };
+
+    let isHoveringInfo = false;
     
     const updateInfoBadge = () => {
       const info = getMediaInfo();
       if (info.width && info.height) {
-        const audioIcon = info.hasAudio ? '🔊' : (info.isVideo ? '🔇' : '');
-        infoBadge.textContent = `${info.width}×${info.height}${audioIcon ? ' ' + audioIcon : ''}`;
-        infoBadge.style.display = 'block';
+        if (dimensionsBadge && updateDimensionsBadge) {
+          updateDimensionsBadge(dimensionsBadge, info.width, info.height, info.hasAudio);
+          dimensionsBadge.style.opacity = isHoveringInfo ? '1' : '0';
+        }
       } else {
-        infoBadge.style.display = 'none';
+        if (dimensionsBadge) {
+          dimensionsBadge.style.opacity = '0';
+        }
       }
     };
-    
-    // Style the info badge
-    if (settings.amoledTheme) {
-      infoBadge.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 8px 12px;
-        border-radius: 4px;
-        background: rgba(0, 0, 0, 0.8);
-        color: ${theme.primary};
-        font-size: 20px !important;
-        font-weight: 600;
-        font-family: monospace;
-        pointer-events: none;
-        z-index: 100;
-        border: 1px solid ${theme.primary};
-        display: none;
-        line-height: 1.2;
-      `;
-    } else {
-      infoBadge.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        padding: 8px 12px;
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.9);
-        color: ${theme.text};
-        font-size: 20px !important;
-        font-weight: 600;
-        font-family: monospace;
-        pointer-events: none;
-        z-index: 100;
-        border: 1px solid ${theme.border};
-        display: none;
-        line-height: 1.2;
-      `;
-    }
-    
-    wrapper.appendChild(infoBadge);
+
+    const repositionOverlays = () => {
+      if (!positionButtonsForMedia) return;
+      positionButtonsForMedia(wrapper, imageElement, null, null, null, null);
+    };
+    repositionOverlays();
     
     // Update badge when metadata loads
     if (isVideo) {
-      imageElement.addEventListener('loadedmetadata', updateInfoBadge);
+      imageElement.addEventListener('loadedmetadata', () => {
+        repositionOverlays();
+        updateInfoBadge();
+      });
       if (imageElement.readyState >= 1) {
+        repositionOverlays();
         updateInfoBadge();
       }
     } else {
       if (imageElement.complete) {
+        repositionOverlays();
         updateInfoBadge();
       }
-      imageElement.addEventListener('load', updateInfoBadge);
+      imageElement.addEventListener('load', () => {
+        repositionOverlays();
+        updateInfoBadge();
+      });
     }
 
     // Show/hide button and badge on hover
     const showElements = () => {
+      isHoveringInfo = true;
       downloadBtn.style.opacity = '1';
       downloadBtn.style.pointerEvents = 'auto';
-      infoBadge.style.display = 'block';
+      // Ensure we have up-to-date dimensions, but never show unless hovered
+      repositionOverlays();
+      updateInfoBadge();
     };
 
     const hideElements = () => {
+      isHoveringInfo = false;
       downloadBtn.style.opacity = '0';
       downloadBtn.style.pointerEvents = 'none';
-      infoBadge.style.display = 'none';
+      if (dimensionsBadge) {
+        dimensionsBadge.style.opacity = '0';
+      }
     };
 
     wrapper.addEventListener('mouseenter', showElements);

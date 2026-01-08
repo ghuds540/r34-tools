@@ -4,8 +4,8 @@
 (function() {
   'use strict';
 
-  // Get dependencies
-  const { DownloadTracker, extractPostId } = window.R34Tools;
+  // NOTE: Do not capture dependencies at module-load time.
+  // Module load order can vary; resolve from window.R34Tools at call time.
 
   // Indicator styles
   const INDICATOR_STYLES = {
@@ -142,8 +142,23 @@
       }
 
       // Update content
-      const isPostPage = indicator.classList.contains('r34-postPage-indicator');
-      if (isPostPage) {
+      // Post page indicator is intentionally compact (glyph-only) so it never overflows.
+      const isCompact = indicator.dataset.compact === 'true' ||
+        indicator.classList.contains('r34-thumbnail-indicator') ||
+        indicator.classList.contains('r34-postPage-indicator');
+
+      if (isCompact) {
+        if (newState === 'downloading') {
+          indicator.innerHTML = '<span class="r34-spinner">⟳</span>';
+          indicator.title = 'Downloading...';
+        } else if (newState === 'failed') {
+          indicator.textContent = '✗';
+          indicator.title = 'Download failed';
+        } else {
+          indicator.textContent = '✓';
+          indicator.title = 'Already downloaded';
+        }
+      } else {
         if (newState === 'downloading') {
           indicator.innerHTML = `
             <span class="r34-spinner" style="font-size: 16px;">⟳</span>
@@ -160,19 +175,33 @@
             <span>Downloaded</span>
           `;
         }
-      } else {
-        if (newState === 'downloading') {
-          indicator.innerHTML = '<span class="r34-spinner">⟳</span>';
-          indicator.title = 'Downloading...';
-        } else if (newState === 'failed') {
-          indicator.textContent = '✗';
-          indicator.title = 'Download failed';
-        } else {
-          indicator.textContent = '✓';
-          indicator.title = 'Already downloaded';
-        }
       }
     }
+  }
+
+  async function waitForPostMediaElement(timeoutMs = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const { safeQuerySelector, SELECTORS } = window.R34Tools || {};
+      let mediaElement = safeQuerySelector && SELECTORS?.imageElement
+        ? safeQuerySelector(SELECTORS.imageElement)
+        : document.querySelector('#image, img.img, .flexi img, video, #gelcomVideoPlayer');
+
+      if (mediaElement) {
+        if (mediaElement.tagName !== 'IMG' && mediaElement.tagName !== 'VIDEO') {
+          const innerVideo = mediaElement.querySelector?.('video') || document.querySelector('video');
+          if (innerVideo) mediaElement = innerVideo;
+        }
+
+        if (mediaElement && (mediaElement.tagName === 'IMG' || mediaElement.tagName === 'VIDEO')) {
+          return mediaElement;
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+
+    return null;
   }
 
   /**
@@ -449,7 +478,7 @@
     let mediaElement = safeQuerySelector && SELECTORS?.imageElement
       ? safeQuerySelector(SELECTORS.imageElement)
       : document.querySelector('#image, img.img, .flexi img, video, #gelcomVideoPlayer');
-    if (!mediaElement) return;
+    if (!mediaElement) return false;
 
     // If we matched a container (e.g. gelcom wrapper), drill to the actual video
     if (mediaElement.tagName !== 'IMG' && mediaElement.tagName !== 'VIDEO') {
@@ -458,17 +487,51 @@
     }
 
     const wrapper = mediaElement.parentElement;
-    if (!wrapper) return;
+    if (!wrapper) return false;
 
     // Make sure wrapper is positioned for absolute overlays
     if (getComputedStyle(wrapper).position === 'static') {
       wrapper.style.position = 'relative';
     }
 
-    // Use the compact checkmark badge style (consistent with thumbnails)
-    const indicator = await createIndicator('thumbnail', state);
-    indicator.classList.add('r34-postPage-indicator');
+    // Use an in-flow compact badge (do NOT use absolute positioning inside the flex badges container)
+    const indicator = document.createElement('div');
+    indicator.className = `r34-download-indicator r34-postPage-indicator r34-indicator-${state}`;
+    indicator.dataset.state = state;
     indicator.dataset.postId = postId;
+    indicator.dataset.compact = 'true';
+
+    indicator.style.width = '20px';
+    indicator.style.height = '20px';
+    indicator.style.borderRadius = '50%';
+    indicator.style.position = 'relative';
+    indicator.style.display = 'flex';
+    indicator.style.alignItems = 'center';
+    indicator.style.justifyContent = 'center';
+    indicator.style.fontSize = '12px';
+    indicator.style.fontWeight = '600';
+    indicator.style.color = 'white';
+    indicator.style.zIndex = '102';
+    indicator.style.pointerEvents = 'none';
+    indicator.style.textDecoration = 'none';
+    indicator.style.lineHeight = '1';
+    indicator.style.flexShrink = '0';
+    indicator.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+    indicator.style.border = '2px solid white';
+
+    if (state === 'downloading') {
+      indicator.style.backgroundColor = 'rgba(33, 150, 243, 0.9)';
+      indicator.innerHTML = '<span class="r34-spinner">⟳</span>';
+      indicator.title = 'Downloading...';
+    } else if (state === 'failed') {
+      indicator.style.backgroundColor = 'rgba(244, 67, 54, 0.9)';
+      indicator.textContent = '✗';
+      indicator.title = 'Download failed';
+    } else {
+      indicator.style.backgroundColor = 'rgba(76, 175, 80, 0.9)';
+      indicator.textContent = '✓';
+      indicator.title = 'Already downloaded';
+    }
 
     // Prefer shared badges container (top-right over media bounds)
     const { ensureOverlayContainers, positionButtonsForMedia } = window.R34Tools || {};
@@ -523,12 +586,17 @@
       // Start hidden even if inserted under cursor; user expects hover-in/out
       hide();
     }
+
+    return true;
   }
 
   /**
    * Scan and mark downloaded thumbnails on list pages
    */
   async function markDownloadedThumbnails() {
+    const { DownloadTracker } = window.R34Tools || {};
+    if (!DownloadTracker?.checkMultiple) return;
+
     const thumbnails = document.querySelectorAll('.thumb img, .thumbnail img');
     if (thumbnails.length === 0) return;
 
@@ -575,13 +643,23 @@
    * Check and mark current post page if downloaded
    */
   async function markDownloadedPostPage() {
-    const postId = extractPostId ? extractPostId(window.location.href) : null;
+    const { extractPostId, DownloadTracker } = window.R34Tools || {};
+    if (!extractPostId || !DownloadTracker?.isDownloaded) return;
+
+    const postId = extractPostId(window.location.href);
     if (!postId) return;
 
     const isDownloaded = await DownloadTracker.isDownloaded(postId);
     if (isDownloaded) {
-      addPostPageIndicator(postId);
-      console.log(`[R34 Tools] Marked post ${postId} as downloaded`);
+      // On some post pages (e.g. gelcom/fluid player), the media element is injected late.
+      // Wait briefly so the indicator reliably appears after refresh/navigation.
+      const media = await waitForPostMediaElement(5000);
+      if (!media) return;
+
+      const ok = await addPostPageIndicator(postId);
+      if (ok) {
+        console.log(`[R34 Tools] Marked post ${postId} as downloaded`);
+      }
     }
   }
 
@@ -589,6 +667,9 @@
    * Initialize download indicators
    */
   async function initializeIndicators() {
+    const { DownloadTracker } = window.R34Tools || {};
+    if (!DownloadTracker) return;
+
     // Check if tracking is enabled
     const settings = await browser.storage.local.get({ enableDownloadTracking: true });
     if (!settings.enableDownloadTracking) {
