@@ -33,7 +33,7 @@
   } = window.R34Tools;
 
   const {
-    downloadFromCurrentPage, downloadFromThumbnail, savePageData, handleThumbnailDownloadClick, handleThumbnailFullResClick, setTotalDownloads
+    downloadFromCurrentPage, downloadFromThumbnail, savePageData, handleThumbnailDownloadClick, handleThumbnailFullResClick
   } = window.R34Tools;
 
   // =============================================================================
@@ -41,8 +41,22 @@
   // =============================================================================
 
   // Track latest stats from both sources
-  let latestDownloadStats = { downloading: 0, paused: 0, completed: 0, failed: 0 };
-  let latestFetchStats = { fetchingHtml: 0, rateLimited: 0, pending: 0, total: 0, completed: 0 };
+  let latestDownloadStats = { downloading: 0, paused: 0, completed: 0, failed: 0, totalInitiated: 0, totalCompleted: 0 };
+  let latestFetchStats = { fetchingHtml: 0, rateLimited: 0, pending: 0 };
+
+  // Fetch current stats from background on page load
+  async function loadCurrentStats() {
+    try {
+      const response = await browser.runtime.sendMessage({ action: 'getQueueStats' });
+      if (response && response.success) {
+        latestDownloadStats = response.stats;
+        updateQueueStatusDisplay();
+        console.log('[R34 Tools] Loaded current stats from background:', response.stats);
+      }
+    } catch (error) {
+      console.error('[R34 Tools] Failed to load stats:', error);
+    }
+  }
 
   // Listen for messages from background script
   browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
@@ -53,6 +67,10 @@
     } else if (message.action === 'queueStatsUpdate') {
       latestDownloadStats = message.stats;
       updateQueueStatusDisplay();
+    } else if (message.action === 'fetchAndDownload') {
+      // Background is requesting us to fetch HTML and download
+      const success = await downloadFromThumbnail(message.postUrl);
+      return { success };
     }
   });
 
@@ -73,11 +91,11 @@
       return;
     }
 
-    const { downloading, paused, completed, failed } = latestDownloadStats;
-    const { fetchingHtml, rateLimited, pending, total: totalDownloads, completed: completedDownloads } = latestFetchStats;
+    const { downloading, paused, completed, failed, totalInitiated, totalCompleted } = latestDownloadStats;
+    const { fetchingHtml, rateLimited, pending } = latestFetchStats;
     const total = downloading + paused + completed + failed + fetchingHtml + rateLimited + pending;
 
-    if (total === 0 && totalDownloads === 0) {
+    if (total === 0 && totalInitiated === 0) {
       statusText.textContent = 'No active downloads';
       if (progressBarContainer) progressBarContainer.style.display = 'none';
       return;
@@ -85,8 +103,8 @@
 
     // Build status text
     const parts = [];
-    if (totalDownloads > 0) {
-      parts.push(`${completedDownloads}/${totalDownloads}`);
+    if (totalInitiated > 0) {
+      parts.push(`${totalCompleted}/${totalInitiated}`);
     }
     if (fetchingHtml > 0) parts.push(`${fetchingHtml} fetching`);
     if (rateLimited > 0) parts.push(`${rateLimited} paused (fetch)`);
@@ -99,9 +117,9 @@
     statusText.textContent = parts.join(', ');
 
     // Update progress bar
-    if (progressBar && progressBarContainer && totalDownloads > 0) {
+    if (progressBar && progressBarContainer && totalInitiated > 0) {
       progressBarContainer.style.display = 'block';
-      const percent = (completedDownloads / totalDownloads) * 100;
+      const percent = (totalCompleted / totalInitiated) * 100;
       progressBar.style.width = `${percent}%`;
     } else if (progressBarContainer) {
       progressBarContainer.style.display = 'none';
@@ -761,36 +779,17 @@
       return;
     }
 
-    // Set total count upfront for progress tracking
-    setTotalDownloads(downloadTasks.length);
+    // Send all posts to background for persistent processing
+    const response = await browser.runtime.sendMessage({
+      action: 'addBatchDownloads',
+      postUrls: downloadTasks
+    });
 
-    showNotification(`Starting download of ${downloadTasks.length} items...`, 'info');
-
-    let downloaded = 0;
-    let failed = 0;
-
-    for (const postUrl of downloadTasks) {
-      try {
-        const success = await downloadFromThumbnail(postUrl);
-        if (success) {
-          downloaded++;
-        } else {
-          failed++;
-        }
-        // Small delay between downloads to avoid overwhelming the queue
-        await delay(100);
-      } catch (error) {
-        console.error('[R34 Tools] Download error:', error);
-        failed++;
-      }
+    if (response.success) {
+      showNotification(`Queued ${downloadTasks.length} items for download`, 'success');
+    } else {
+      showNotification('Failed to queue downloads', 'error');
     }
-
-    // Final summary notification
-    const summary = downloaded > 0
-      ? `Downloaded ${downloaded}/${downloadTasks.length} items` + (failed > 0 ? ` (${failed} failed)` : '')
-      : `All ${failed} downloads failed`;
-
-    showNotification(summary, downloaded > 0 ? 'success' : 'error');
   }
 
   // =============================================================================
@@ -1885,6 +1884,9 @@
     await createExtensionControlsPanel();
     await createImageDownloadButton();
     await addSaveIconsToLinks();
+
+    // Load current download stats after UI is created
+    await loadCurrentStats();
 
     // Apply saved thumbnail scale
     const settings = await settingsManager.getAll();

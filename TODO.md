@@ -34,5 +34,7 @@ small features:
 - saved searches in dropdown filter list
   - need to wait for sqlite for this 
 
+- experiment with rate limit bypassing or techniques that make it faster/more efficient
+
 medium/large features:
 - tiktok

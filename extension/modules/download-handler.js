@@ -21,11 +21,6 @@
   const activeFetches = new Set(); // Set of postUrls currently being fetched
   const pendingDownloads = new Set(); // Set of postUrls waiting to start
 
-  // Progress tracking
-  let totalDownloads = 0; // Total number of downloads initiated
-  let completedDownloads = 0; // Number completed (success or failure)
-  let batchMode = false; // Whether total was pre-set for batch operation
-
   /**
    * Get HTML fetch queue stats
    * @returns {Object} Stats object with fetchingHtml count
@@ -34,64 +29,8 @@
     return {
       fetchingHtml: activeFetches.size,
       rateLimited: fetchRateLimitState.pendingFetches.length,
-      pending: pendingDownloads.size,
-      total: totalDownloads,
-      completed: completedDownloads
+      pending: pendingDownloads.size
     };
-  }
-
-  /**
-   * Reset progress tracking
-   */
-  function resetProgress() {
-    totalDownloads = 0;
-    completedDownloads = 0;
-    batchMode = false;
-    triggerStatsUpdate();
-  }
-
-  /**
-   * Set total download count (for batch operations)
-   * @param {number} count - Total number of downloads
-   */
-  function setTotalDownloads(count) {
-    totalDownloads = count;
-    completedDownloads = 0;
-    batchMode = true; // Mark as batch mode
-    triggerStatsUpdate();
-  }
-
-  /**
-   * Start tracking a new download
-   */
-  function startDownload() {
-    // If batch is complete and user starts a new download, reset to individual mode
-    if (batchMode && completedDownloads >= totalDownloads) {
-      resetProgress();
-    }
-    
-    // Only increment total if not in batch mode
-    if (!batchMode) {
-      totalDownloads++;
-    }
-    triggerStatsUpdate();
-  }
-
-  /**
-   * Mark a download as completed
-   */
-  function completeDownload() {
-    completedDownloads++;
-    triggerStatsUpdate();
-
-    // Auto-reset when all done
-    if (completedDownloads >= totalDownloads && totalDownloads > 0) {
-      setTimeout(() => {
-        if (completedDownloads >= totalDownloads) {
-          resetProgress();
-        }
-      }, 60000); // Reset after 60s
-    }
   }
 
   /**
@@ -327,7 +266,6 @@
    */
   async function downloadFromThumbnail(postUrl) {
     console.log('[R34 Tools] Starting download from thumbnail:', postUrl);
-    startDownload();
 
     try {
       console.log('[R34 Tools] Fetching post page HTML...');
@@ -374,17 +312,16 @@
 
       if (dlResponse.success) {
         console.log('[R34 Tools] Download queued successfully');
-        completeDownload();
         // Notification will be sent by background script queue system
         return true;
       } else {
         console.error('[R34 Tools] Download failed:', dlResponse.error);
-        completeDownload();
         showNotification(`Download failed: ${dlResponse.error}`, 'error');
         return false;
       }
     } catch (error) {
-      console.error('[R34 Tools] Exception in downloadFromThumbnail:', error);      completeDownload();      showNotification(`Error: ${error.message}`, 'error');
+      console.error('[R34 Tools] Exception in downloadFromThumbnail:', error);
+      showNotification(`Error: ${error.message}`, 'error');
       return false;
     }
   }
@@ -586,6 +523,5 @@
   window.R34Tools.savePageData = savePageData;
   window.R34Tools.handleThumbnailDownloadClick = handleThumbnailDownloadClick;
   window.R34Tools.handleThumbnailFullResClick = handleThumbnailFullResClick;
-  window.R34Tools.setTotalDownloads = setTotalDownloads;
 
 })();

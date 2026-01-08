@@ -24,6 +24,20 @@ const rateLimitState = {
   backoffTimeoutId: null          // Timeout ID for backoff period
 };
 
+// Global progress tracking (persists across page navigations)
+const progressState = {
+  totalInitiated: 0,    // Total downloads initiated across all batches
+  totalCompleted: 0,    // Total downloads completed (success or failure)
+  resetTimeoutId: null  // Timeout for auto-reset
+};
+
+// Batch download queue for processing post URLs
+const batchQueue = {
+  posts: [],            // Array of {postUrl, tabId}
+  isProcessing: false,  // Whether currently processing
+  intervalId: null      // Interval for processing
+};
+
 /**
  * Calculate exponential backoff delay
  * @param {number} attempts - Current attempt number (starts at 1)
@@ -81,6 +95,21 @@ function removeFromQueue(downloadId) {
   // Clear any pending retry timeout
   if (item.retryTimeoutId) {
     clearTimeout(item.retryTimeoutId);
+  }
+
+  // Track completion
+  progressState.totalCompleted++;
+  
+  // Schedule auto-reset if all done
+  if (progressState.totalCompleted >= progressState.totalInitiated && progressState.totalInitiated > 0) {
+    if (progressState.resetTimeoutId) {
+      clearTimeout(progressState.resetTimeoutId);
+    }
+    progressState.resetTimeoutId = setTimeout(() => {
+      progressState.totalInitiated = 0;
+      progressState.totalCompleted = 0;
+      broadcastQueueStats();
+    }, 60000); // Reset after 60s of being complete
   }
 
   // Remove after delay to allow final state processing
@@ -216,6 +245,54 @@ function resetRateLimitState() {
 }
 
 /**
+ * Process batch download queue
+ */
+async function processBatchQueue() {
+  if (batchQueue.isProcessing || batchQueue.posts.length === 0) {
+    return;
+  }
+
+  batchQueue.isProcessing = true;
+  const item = batchQueue.posts.shift();
+
+  try {
+    // Find any rule34.xxx tab to send the fetch request to
+    const tabs = await browser.tabs.query({ url: '*://rule34.xxx/*' });
+    if (tabs.length === 0) {
+      console.log('[R34 Tools] No rule34 tabs open, requeueing:', item.postUrl);
+      batchQueue.posts.unshift(item); // Put it back
+      batchQueue.isProcessing = false;
+      return;
+    }
+
+    // Send to first available tab
+    const tab = tabs[0];
+    const response = await browser.tabs.sendMessage(tab.id, {
+      action: 'fetchAndDownload',
+      postUrl: item.postUrl
+    }).catch(err => {
+      console.error('[R34 Tools] Failed to send fetch request:', err);
+      return { success: false, error: err.message };
+    });
+
+    if (!response || !response.success) {
+      console.error('[R34 Tools] Batch download failed for:', item.postUrl, response?.error);
+    }
+  } catch (error) {
+    console.error('[R34 Tools] Error processing batch item:', error);
+  } finally {
+    batchQueue.isProcessing = false;
+    
+    // Continue processing if more items
+    if (batchQueue.posts.length > 0) {
+      setTimeout(processBatchQueue, 100); // Small delay between items
+    } else {
+      console.log('[R34 Tools] Batch queue empty');
+    }
+  }
+}
+
+/**
  * Calculate queue statistics
  */
 function getQueueStats() {
@@ -223,7 +300,9 @@ function getQueueStats() {
     downloading: 0,
     paused: 0,
     completed: 0,
-    failed: 0
+    failed: 0,
+    totalInitiated: progressState.totalInitiated,
+    totalCompleted: progressState.totalCompleted
   };
 
   // Count items in download queue
@@ -446,6 +525,53 @@ browser.commands.onCommand.addListener(async (command) => {
 
 // Listen for messages from content script
 browser.runtime.onMessage.addListener(async (message, sender) => {
+  // Add batch downloads
+  if (message.action === 'addBatchDownloads') {
+    const { postUrls } = message;
+    const tabId = sender.tab ? sender.tab.id : null;
+    
+    // Add to progress total
+    progressState.totalInitiated += postUrls.length;
+    
+    // Add to batch queue
+    postUrls.forEach(postUrl => {
+      batchQueue.posts.push({ postUrl, tabId });
+    });
+    
+    console.log(`[R34 Tools] Added ${postUrls.length} posts to batch queue (total: ${batchQueue.posts.length})`);
+    
+    // Start processing
+    processBatchQueue();
+    
+    // Clear any pending reset
+    if (progressState.resetTimeoutId) {
+      clearTimeout(progressState.resetTimeoutId);
+      progressState.resetTimeoutId = null;
+    }
+    
+    broadcastQueueStats();
+    return { success: true };
+  }
+
+  // Add to batch download total
+  if (message.action === 'addToBatchTotal') {
+    progressState.totalInitiated += message.count;
+    
+    // Clear any pending reset
+    if (progressState.resetTimeoutId) {
+      clearTimeout(progressState.resetTimeoutId);
+      progressState.resetTimeoutId = null;
+    }
+    
+    broadcastQueueStats();
+    return { success: true };
+  }
+
+  // Get current queue stats
+  if (message.action === 'getQueueStats') {
+    return { success: true, stats: getQueueStats() };
+  }
+
   // Download media file
   if (message.action === 'download') {
     try {
