@@ -221,6 +221,11 @@
       pointer-events: none;
       transition: opacity 0.2s ease;
       white-space: nowrap;
+      max-width: 100%;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
       backdrop-filter: blur(8px);
       line-height: 1;
       letter-spacing: 0.3px;
@@ -472,6 +477,8 @@
       border: 1px solid ${COLORS.accent.grayDark};
     `;
 
+    qualityBadge.style.flexShrink = '0';
+
     return qualityBadge;
   }
 
@@ -583,6 +590,16 @@
     const { ensureOverlayContainers } = window.R34Tools;
 
     const wrapper = createThumbnailWrapper(img);
+
+    // Stamp wrapper with postId for fast lookups (used by download indicators)
+    try {
+      const match = postLink?.href?.match(/[?&]id=(\d+)/);
+      if (match) {
+        wrapper.dataset.postId = match[1];
+      }
+    } catch (e) {
+      // ignore
+    }
     const downloadBtn = await createDownloadButton();
     const fullResBtn = await createFullResButton();
     const qualityBadge = createQualityBadge();

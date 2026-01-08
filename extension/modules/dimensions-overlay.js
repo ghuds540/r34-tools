@@ -84,6 +84,12 @@
     const settings = await window.R34Tools.settingsManager.getAll();
     if (!settings.showMediaDimensions) return;
 
+    // On list pages, don't show WxH for image thumbnails.
+    // Videos still benefit from the XXXp + 🔊 indicator.
+    const isListPage = window.location.href.includes('page=post&s=list') ||
+      window.location.href.includes('tags=');
+    if (isListPage && mediaElement?.tagName === 'IMG') return;
+
     // Create dimensions badge (hidden by default)
     const dimensionsBadge = createDimensionsBadge(wrapper, mediaElement);
 
@@ -91,7 +97,7 @@
     const { ensureOverlayContainers } = window.R34Tools;
     const { badges } = ensureOverlayContainers ? ensureOverlayContainers(wrapper) : {};
     if (badges) {
-      badges.insertBefore(dimensionsBadge, badges.firstChild);
+      badges.appendChild(dimensionsBadge);
     } else {
       wrapper.appendChild(dimensionsBadge);
     }

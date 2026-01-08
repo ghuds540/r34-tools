@@ -32,10 +32,11 @@
       badges.style.cssText = `
         position: absolute;
         display: flex;
-        flex-direction: row;
+        flex-direction: row-reverse;
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: flex-start;
         align-items: flex-start;
+        align-content: flex-start;
         gap: 6px;
         padding: 4px;
         z-index: 119;
@@ -139,8 +140,17 @@
       controls.style.left = `${offsetLeft}px`;
     }
     if (badges) {
+      // Reserve left space for the 2-column control buttons (download + upscale)
+      const reservedLeft = (BUTTON_STYLES.fullRes.left + BUTTON_STYLES.fullRes.width) + 8;
+      const mediaWidth = mediaRect.width / scale;
+      const leftInset = Math.max(0, reservedLeft);
+      const availableWidth = Math.max(0, mediaWidth - leftInset);
+
       badges.style.top = `${offsetTop}px`;
       badges.style.right = `${offsetRight}px`;
+      badges.style.left = `${offsetLeft + leftInset}px`;
+      badges.style.maxWidth = `${availableWidth}px`;
+      badges.style.boxSizing = 'border-box';
     }
 
     // Back-compat: if a consumer still appends elements directly to wrapper,

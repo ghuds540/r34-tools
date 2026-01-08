@@ -64,6 +64,9 @@
     // Prevent inherited underline from parent links
     indicator.style.textDecoration = 'none';
 
+    // Default flex sizing
+    indicator.style.flexShrink = '0';
+
     // State-specific colors
     if (state === 'downloading') {
       indicator.style.backgroundColor = 'rgba(33, 150, 243, 0.9)'; // Blue
@@ -215,12 +218,18 @@
       if (isPostPage) {
         await addPostPageIndicator(postId, 'success');
       } else {
+        // Prefer wrapper stamped with data-post-id
+        const wrapper = document.querySelector(`.r34-thumb-wrapper[data-post-id="${postId}"]`);
+        if (wrapper) {
+          await addThumbnailIndicator(wrapper, postId, 'success');
+          return;
+        }
+
+        // Fallback: locate by link href
         const thumbnailLink = document.querySelector(`a[href*="id=${postId}"]`);
         if (thumbnailLink) {
-          const thumbnail = thumbnailLink.querySelector('img');
-          if (thumbnail) {
-            await addThumbnailIndicator(thumbnail, postId, 'success');
-          }
+          const thumbnail = thumbnailLink.querySelector('img, video') || thumbnailLink;
+          await addThumbnailIndicator(thumbnail, postId, 'success');
         }
       }
     }
@@ -270,10 +279,14 @@
     const isHoverMode = settings.downloadIndicatorVisibility === 'hover';
     
     // Find the thumbnail container
-    let container = thumbnail.closest('.thumb') || thumbnail.parentElement;
+    let container = thumbnail?.closest?.('.thumb, .thumbnail, span.thumb') ||
+      thumbnail?.closest?.('.r34-thumb-wrapper') ||
+      thumbnail?.parentElement;
     
     // Always try to add to the button wrapper if it exists
-    const buttonWrapper = container?.querySelector('.r34-thumb-wrapper');
+    const buttonWrapper = container?.classList?.contains('r34-thumb-wrapper')
+      ? container
+      : container?.querySelector?.('.r34-thumb-wrapper');
     console.log('[R34 Download Indicators] Looking for button wrapper, found:', buttonWrapper);
     
     if (buttonWrapper) {
@@ -303,6 +316,8 @@
       indicator.style.pointerEvents = 'none';
       indicator.style.textDecoration = 'none';
       indicator.style.lineHeight = '1';
+      indicator.style.flexShrink = '0';
+      // Do not override flex order; DOM order + container layout controls placement
       indicator.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
       indicator.style.border = '2px solid white';
 
@@ -344,7 +359,7 @@
       const { ensureOverlayContainers } = window.R34Tools || {};
       const { badges } = ensureOverlayContainers ? ensureOverlayContainers(buttonWrapper) : {};
       if (badges) {
-        badges.appendChild(indicator);
+        badges.insertBefore(indicator, badges.firstChild);
       } else {
         buttonWrapper.appendChild(indicator);
       }

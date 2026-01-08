@@ -181,8 +181,8 @@
     goToPost: {
       width: 28,
       height: 28,
-      top: 4,
-      left: 68,
+      top: 36,
+      left: 4,
       gradient: GRADIENTS.purpleButton,
       color: '#00ff66'
     },
