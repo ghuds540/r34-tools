@@ -134,6 +134,19 @@ function setupEventListeners() {
   // Reset settings button
   document.getElementById('resetSettings').addEventListener('click', resetSettings);
 
+  // Backup export/import
+  const exportBtn = document.getElementById('exportState');
+  const importBtn = document.getElementById('importState');
+  const importFile = document.getElementById('importStateFile');
+
+  if (exportBtn) {
+    exportBtn.addEventListener('click', exportBackupArchive);
+  }
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', handleImportBackupFile);
+  }
+
   // Auto-save on change for all settings
   document.getElementById('conflictAction').addEventListener('change', autoSaveSettings);
   document.getElementById('amoledTheme').addEventListener('change', async () => {
@@ -263,6 +276,114 @@ function setupEventListeners() {
 
   // Set initial state
   updateVideoAutoplayDependents();
+}
+
+function safeIsoStamp() {
+  try {
+    return new Date().toISOString().replace(/[:.]/g, '-');
+  } catch {
+    return String(Date.now());
+  }
+}
+
+async function exportBackupArchive() {
+  try {
+    const data = await browser.storage.local.get({
+      r34_downloaded_posts: [],
+      r34_saved_pages: {}
+    });
+
+    const archive = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        r34_downloaded_posts: Array.isArray(data.r34_downloaded_posts) ? data.r34_downloaded_posts : [],
+        r34_saved_pages: (data.r34_saved_pages && typeof data.r34_saved_pages === 'object') ? data.r34_saved_pages : {}
+      }
+    };
+
+    const json = JSON.stringify(archive, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `r34-tools-backup-${safeIsoStamp()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => {
+      try { URL.revokeObjectURL(url); } catch {}
+    }, 1000);
+
+    showStatus('Backup exported', 'success');
+  } catch (error) {
+    showStatus('Failed to export backup: ' + (error?.message || String(error)), 'error');
+  }
+}
+
+async function handleImportBackupFile(event) {
+  const file = event?.target?.files?.[0];
+  // Allow re-importing same file by resetting value
+  event.target.value = '';
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+
+    // Accept either our archive shape or a raw object containing the keys.
+    const payload = (parsed && parsed.data && typeof parsed.data === 'object') ? parsed.data : parsed;
+    if (!payload || typeof payload !== 'object') {
+      showStatus('Invalid backup file (not an object)', 'error');
+      return;
+    }
+
+    const downloaded = payload.r34_downloaded_posts;
+    const saved = payload.r34_saved_pages;
+
+    const hasDownloaded = typeof downloaded !== 'undefined';
+    const hasSaved = typeof saved !== 'undefined';
+
+    if (!hasDownloaded && !hasSaved) {
+      showStatus('Backup missing r34_downloaded_posts / r34_saved_pages', 'error');
+      return;
+    }
+
+    const next = {};
+    if (hasDownloaded) {
+      if (!Array.isArray(downloaded)) {
+        showStatus('Invalid r34_downloaded_posts (expected array)', 'error');
+        return;
+      }
+      next.r34_downloaded_posts = downloaded;
+    }
+    if (hasSaved) {
+      if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+        showStatus('Invalid r34_saved_pages (expected object map)', 'error');
+        return;
+      }
+      next.r34_saved_pages = saved;
+    }
+
+    const summaryParts = [];
+    if (hasDownloaded) summaryParts.push(`${next.r34_downloaded_posts.length} downloaded`);
+    if (hasSaved) summaryParts.push(`${Object.keys(next.r34_saved_pages).length} bookmarks`);
+
+    const ok = confirm(
+      `Import backup from ${file.name}?\n\nThis will overwrite: ${summaryParts.join(', ')}.`
+    );
+    if (!ok) {
+      showStatus('Import cancelled', 'info');
+      return;
+    }
+
+    await browser.storage.local.set(next);
+    showStatus('Backup imported', 'success');
+  } catch (error) {
+    showStatus('Failed to import backup: ' + (error?.message || String(error)), 'error');
+  }
 }
 
 // Start recording keyboard shortcut

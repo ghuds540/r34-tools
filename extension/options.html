@@ -278,6 +278,17 @@
       </div>
     </section>
 
+    <section class="settings-section">
+      <h2>Backup</h2>
+
+      <div class="setting-item">
+        <button id="exportState" class="btn">Export Downloaded + Bookmarks</button>
+        <button id="importState" class="btn btn-secondary">Import…</button>
+        <input type="file" id="importStateFile" accept="application/json,.json" style="display:none">
+        <p class="help-text">Exports a JSON archive containing downloaded status and saved bookmarks. Import overwrites only those two storage entries (useful for Private/Incognito sessions).</p>
+      </div>
+    </section>
+
     <div class="footer">
       <button id="resetSettings" class="btn btn-secondary">Reset to Defaults</button>
       <div id="status" class="status"></div>

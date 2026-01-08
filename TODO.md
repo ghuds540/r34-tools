@@ -54,3 +54,5 @@ do a huge efficiency pass optimizing everything
 pretty console printout of rule34 tools ascii logo with version.
 
 code refactor
+
+save page other than tag add to database and storage
