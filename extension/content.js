@@ -530,7 +530,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 100;
+        z-index: ${isVideo ? 10000 : 100};
       `;
     } else {
       downloadBtn.style.cssText = `
@@ -551,7 +551,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 100;
+        z-index: ${isVideo ? 10000 : 100};
       `;
     }
 
@@ -575,7 +575,14 @@
       }
     };
 
-    downloadBtn.onclick = () => downloadFromCurrentPage();
+    downloadBtn.onclick = (e) => {
+      // Prevent the underlying video/player from also receiving the click.
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      downloadFromCurrentPage();
+    };
 
     wrapper.appendChild(downloadBtn);
 
@@ -656,8 +663,14 @@
     }
 
     // Show/hide button and badge on hover
+    let hideTimeout = null;
+
     const showElements = () => {
       isHoveringInfo = true;
+      if (hideTimeout) {
+        clearTimeout(hideTimeout);
+        hideTimeout = null;
+      }
       downloadBtn.style.opacity = '1';
       downloadBtn.style.pointerEvents = 'auto';
       // Ensure we have up-to-date dimensions, but never show unless hovered
@@ -665,7 +678,7 @@
       updateInfoBadge();
     };
 
-    const hideElements = () => {
+    const hideElementsNow = () => {
       isHoveringInfo = false;
       downloadBtn.style.opacity = '0';
       downloadBtn.style.pointerEvents = 'none';
@@ -674,10 +687,34 @@
       }
     };
 
+    const hideElements = () => {
+      // Video players can create hover flicker as overlays appear/disappear.
+      // Delay hide slightly so clicks on the button are reliable.
+      if (!isVideo) {
+        hideElementsNow();
+        return;
+      }
+
+      if (hideTimeout) clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => {
+        hideTimeout = null;
+        hideElementsNow();
+      }, 450);
+    };
+
     wrapper.addEventListener('mouseenter', showElements);
     wrapper.addEventListener('mouseleave', hideElements);
+
+    // Keep hover stable: on videos, the player injects overlays that can trigger noisy
+    // mouseleave events on the <video>. Only use mouseenter there.
     imageElement.addEventListener('mouseenter', showElements);
-    imageElement.addEventListener('mouseleave', hideElements);
+    if (!isVideo) {
+      imageElement.addEventListener('mouseleave', hideElements);
+    }
+
+    // Ensure the button itself maintains hover visibility.
+    downloadBtn.addEventListener('mouseenter', showElements);
+    downloadBtn.addEventListener('mouseleave', hideElements);
   }
 
   // =============================================================================

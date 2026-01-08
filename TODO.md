@@ -38,3 +38,19 @@ small features:
 
 medium/large features:
 - tiktok
+
+optional score on hover
+- make some of the options for hover just be permentant (ytou can choose for each thing to be either off, hover, always on)
+
+experiment with behavior that would circumvent aggressive rate limiting (human interactions where its sporadic and inconsistent seem to make it not rate limit as much, but might just be me)
+
+condense settings and give it a pass to make some things that are implicitely done now into settings
+
+add checkbox in post page
+
+improve performance and rate limiting with lazy retrieval of things,
+do a huge efficiency pass optimizing everything
+
+pretty console printout of rule34 tools ascii logo with version.
+
+code refactor

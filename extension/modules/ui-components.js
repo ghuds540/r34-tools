@@ -205,16 +205,30 @@
    * @returns {HTMLDivElement} Dimensions badge element
    */
   function createDimensionsBadge(wrapper, mediaElement) {
+    const isPostPage = (() => {
+      try {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('page') === 'post' && url.searchParams.get('s') === 'view';
+      } catch {
+        return window.location.href.includes('page=post&s=view');
+      }
+    })();
+
+    const badgeHeight = isPostPage ? 44 : 28;
+    const badgeFontSize = isPostPage ? 16 : 12;
+
     const badge = document.createElement('div');
     badge.className = CLASS_NAMES.dimensionsBadge;
     badge.dataset.mediaType = (mediaElement?.tagName || '').toLowerCase();
     badge.style.cssText = `
       position: relative;
-      padding: 5px 9px;
+      height: ${badgeHeight}px;
+      min-height: ${badgeHeight}px;
+      padding: 0 9px;
       background: rgba(0, 0, 0, 0.9);
       color: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
-      font-size: 12px;
+      font-size: ${badgeFontSize}px;
       font-weight: 600;
       border-radius: 4px;
       z-index: 5;
@@ -228,6 +242,9 @@
       overflow: hidden;
       text-overflow: ellipsis;
       backdrop-filter: blur(8px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       line-height: 1;
       letter-spacing: 0.3px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);

@@ -11,14 +11,14 @@
   const INDICATOR_STYLES = {
     thumbnail: {
       position: 'relative',
-      width: '20px',
-      height: '20px',
+      width: '28px',
+      height: '28px',
       backgroundColor: 'rgba(76, 175, 80, 0.9)',
       borderRadius: '50%',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '12px',
+      fontSize: '14px',
       color: 'white',
       zIndex: '102',
       pointerEvents: 'none',
@@ -499,17 +499,18 @@
     indicator.dataset.postId = postId;
     indicator.dataset.compact = 'true';
 
-    indicator.style.width = '20px';
-    indicator.style.height = '20px';
+    // Match the hover download button size on post pages (44px)
+    indicator.style.width = '44px';
+    indicator.style.height = '44px';
     indicator.style.borderRadius = '50%';
     indicator.style.position = 'relative';
     indicator.style.display = 'flex';
     indicator.style.alignItems = 'center';
     indicator.style.justifyContent = 'center';
-    indicator.style.fontSize = '12px';
+    indicator.style.fontSize = '18px';
     indicator.style.fontWeight = '600';
     indicator.style.color = 'white';
-    indicator.style.zIndex = '102';
+    indicator.style.zIndex = '2147483647';
     indicator.style.pointerEvents = 'none';
     indicator.style.textDecoration = 'none';
     indicator.style.lineHeight = '1';

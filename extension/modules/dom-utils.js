@@ -136,10 +136,22 @@
     // Position shared overlay containers over the media bounds
     const { controls, badges } = ensureOverlayContainers(wrapper);
     if (controls) {
+      // Video players (especially embedded/fluid) often add overlays with high z-index.
+      // Keep our controls clickable by stacking above them.
+      if (mediaElement.tagName === 'VIDEO') {
+        controls.style.zIndex = '2147483647';
+      } else {
+        controls.style.zIndex = '120';
+      }
       controls.style.top = `${offsetTop}px`;
       controls.style.left = `${offsetLeft}px`;
     }
     if (badges) {
+      if (mediaElement.tagName === 'VIDEO') {
+        badges.style.zIndex = '2147483646';
+      } else {
+        badges.style.zIndex = '119';
+      }
       // Reserve left space only when the 2-column control buttons exist.
       // Post pages (and other callers) may use badges with no controls.
       const shouldReserveLeft = Boolean(downloadBtn || fullResBtn);
