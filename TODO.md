@@ -16,10 +16,11 @@
 - we might be doing too many weird requests causing way worse rate limits. right now we can download a shit ton of posts, but then the backoff will download like 2 every 20 seconds and have to stay at that pace
 - default video volume might not be setting unless we have auto play thing on
 - handle gateway timeouts also with backoff
-- batch download page not displaying the "loading" and checks properly (no checks at all). seems to also be hiding some notifications about what its doing, and when i changed pages and then came back it appeared to not complete the original page, but maybe that was just a rate limit backoff thing
-- when i click download all it doesnt mark them as it goes i have to refresh to see updates, also doesnt show queued progress i dont think
-- queue stuff is really buggy and broken, ton of edge cases where it will incrememnt left side but not right or increment wrong, i also feel like the persist logic seems wrong because it feels shaky to start downloads and then close tab or switch pages
-- bug on accounts like dagasi post page first image which is advertisement gets the hover stuff not the real post
+- shrink resolution label on hover to fill the container so its always visible
+
+## refactoring
+
+- make logic vs ui things seperate so you could easily add different frontends for e621 or realbooru/etc
 
 ## minor features
 

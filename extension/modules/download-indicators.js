@@ -179,13 +179,51 @@
     }
   }
 
+  function isLikelyPromoContainer(element) {
+    if (!element || !element.closest) return false;
+
+    const promoAncestor = element.closest(
+      '#pv_leaderboard, [id*="leaderboard"], [id^="pv_"], [data-nosnippet], [class*="advert"], [class*="sponsor"], [class*="promo"], [class*="ad"], [id*="advert"], [id*="sponsor"], [id*="promo"], [id*="ad"]'
+    );
+    if (promoAncestor) return true;
+
+    const src = (element.tagName === 'IMG')
+      ? (element.currentSrc || element.src || '')
+      : '';
+    if (src && src.includes('/images/artist_selfpromo/')) return true;
+
+    return false;
+  }
+
+  function getPrimaryPostMediaElement() {
+    const canonicalImage = document.getElementById('image');
+    if (canonicalImage && !isLikelyPromoContainer(canonicalImage)) return canonicalImage;
+
+    const gelcom = document.getElementById('gelcomVideoPlayer');
+    if (gelcom) {
+      const gelcomVideo = gelcom.tagName === 'VIDEO' ? gelcom : gelcom.querySelector?.('video');
+      if (gelcomVideo && !isLikelyPromoContainer(gelcomVideo)) return gelcomVideo;
+    }
+
+    const anyVideo = document.querySelector('video');
+    if (anyVideo && !isLikelyPromoContainer(anyVideo)) return anyVideo;
+
+    const candidates = document.querySelectorAll('img[onclick*="Note"], img[onclick*="note"], img.img, .flexi img');
+    for (const img of candidates) {
+      if (isLikelyPromoContainer(img)) continue;
+      const src = img.currentSrc || img.src || '';
+      if (!src) continue;
+      if (src.includes('/images/artist_selfpromo/')) continue;
+      if (src.includes('/samples/') || src.includes('/images/')) return img;
+    }
+
+    return null;
+  }
+
   async function waitForPostMediaElement(timeoutMs = 5000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
-      const { safeQuerySelector, SELECTORS } = window.R34Tools || {};
-      let mediaElement = safeQuerySelector && SELECTORS?.imageElement
-        ? safeQuerySelector(SELECTORS.imageElement)
-        : document.querySelector('#image, img.img, .flexi img, video, #gelcomVideoPlayer');
+      let mediaElement = getPrimaryPostMediaElement();
 
       if (mediaElement) {
         if (mediaElement.tagName !== 'IMG' && mediaElement.tagName !== 'VIDEO') {

@@ -34,13 +34,18 @@
   }
 
   /**
-   * Trigger queue stats update in content script
+   * Send fetch stats to background script (single source of truth)
    */
-  function triggerStatsUpdate() {
-    // Dispatch custom event to notify content script
-    window.dispatchEvent(new CustomEvent('r34tools-fetch-stats-updated', {
-      detail: getFetchQueueStats()
-    }));
+  async function triggerStatsUpdate() {
+    const stats = getFetchQueueStats();
+    try {
+      await browser.runtime.sendMessage({
+        action: 'updateFetchStats',
+        stats: stats
+      });
+    } catch (error) {
+      console.error('[R34 Tools] Failed to send fetch stats:', error);
+    }
   }
 
   /**
@@ -176,28 +181,23 @@
    * @returns {Promise<Response>} Fetch response
    */
   async function fetchWithCoordinatedBackoff(url) {
-    // Track as active fetch
     activeFetches.add(url);
+    pendingDownloads.add(url);
     triggerStatsUpdate();
 
     try {
-      // If currently rate limited, queue this fetch
+      // If currently rate limited, enqueue and let the backoff machinery drain it.
       if (fetchRateLimitState.isRateLimited) {
-        console.log('[R34 Tools] Rate limited - queueing fetch:', url);
-        return new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
           fetchRateLimitState.pendingFetches.push({ postUrl: url, resolve, reject });
-          triggerStatsUpdate();
         });
       }
 
-      // Not rate limited - try fetch
       const response = await fetch(url);
 
       if (response.status === 429) {
         console.log('[R34 Tools] HTML fetch rate limited:', url);
-
-        // Queue this fetch and trigger backoff
-        return new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
           fetchRateLimitState.pendingFetches.push({ postUrl: url, resolve, reject });
           if (!fetchRateLimitState.isRateLimited) {
             triggerFetchRateLimitBackoff();
@@ -206,11 +206,9 @@
       }
 
       return response;
-    } catch (error) {
-      throw error;
     } finally {
-      // Remove from active fetches when done
       activeFetches.delete(url);
+      pendingDownloads.delete(url);
       triggerStatsUpdate();
     }
   }
@@ -264,8 +262,9 @@
    * @param {string} postUrl - Post page URL
    * @returns {Promise<boolean>} True if successful
    */
-  async function downloadFromThumbnail(postUrl) {
+  async function downloadFromThumbnail(postUrl, options = {}) {
     console.log('[R34 Tools] Starting download from thumbnail:', postUrl);
+    const { originTabId, batchCounted } = options || {};
 
     try {
       console.log('[R34 Tools] Fetching post page HTML...');
@@ -335,26 +334,16 @@
         action: 'download',
         url: mediaUrl,
         filename: filename,
-        postId: postId // Include post ID for tracking
+        postId: postId, // Include post ID for tracking
+        originTabId: originTabId ?? undefined,
+        batchCounted: Boolean(batchCounted)
       });
 
       if (dlResponse.success) {
         console.log('[R34 Tools] Download queued successfully');
-        
-        if (settings.enableDownloadTracking) {
-          // Mark as downloaded and update indicator to success
-          const { DownloadTracker, showSuccessIndicator } = window.R34Tools;
-          if (DownloadTracker) {
-            await DownloadTracker.markAsDownloaded(postId);
-            
-            // Update indicator to success state
-            if (showSuccessIndicator) {
-              await showSuccessIndicator(postId);
-            }
-          }
-        }
-        
-        // Notification will be sent by background script queue system
+
+        // Keep indicator in downloading state until background confirms completion.
+        // Notification will be sent by background script queue system.
         return true;
       } else {
         console.error('[R34 Tools] Download failed:', dlResponse.error);
@@ -427,16 +416,8 @@
       if (response.success) {
         console.log('[R34 Tools] Download queued successfully');
 
-        if (settings.enableDownloadTracking && postId) {
-          const { DownloadTracker, showSuccessIndicator } = window.R34Tools || {};
-          if (DownloadTracker?.markAsDownloaded) {
-            await DownloadTracker.markAsDownloaded(postId);
-          }
-          if (showSuccessIndicator) {
-            await showSuccessIndicator(postId);
-          }
-        }
-        // Notification will be sent by background script queue system
+        // Keep indicator in downloading state until background confirms completion.
+        // Notification will be sent by background script queue system.
         return true;
       } else {
         showNotification(`Download failed: ${response.error}`, 'error');
@@ -586,45 +567,6 @@
       await loadFullResInThumbnail(img, postUrl);
     }
   }
-
-  // Listen for download notifications from background script
-  browser.runtime.onMessage.addListener((message) => {
-    if (message.action === 'downloadNotification') {
-      const { type, filename, delay, attempts, maxAttempts, pausedCount, backoffSeconds } = message;
-
-      switch (type) {
-        case 'retrying':
-          showNotification(
-            `Download failed, retrying in ${delay}s...\n(attempt ${attempts}/${maxAttempts})`,
-            'info'
-          );
-          break;
-
-        case 'success':
-          showNotification(
-            attempts > 1
-              ? `Downloaded: ${filename}\n(succeeded after ${attempts} attempts)`
-              : `Downloaded: ${filename}`,
-            'success'
-          );
-          break;
-
-        case 'failed':
-          showNotification(
-            `Download failed after ${attempts} attempts:\n${filename}`,
-            'error'
-          );
-          break;
-
-        case 'rateLimitPause':
-          showNotification(
-            `Rate limited - paused ${pausedCount} download${pausedCount !== 1 ? 's' : ''}\nResuming in ${backoffSeconds}s...`,
-            'info'
-          );
-          break;
-      }
-    }
-  });
 
   // Export all functions to global namespace
   window.R34Tools.downloadFromThumbnail = downloadFromThumbnail;

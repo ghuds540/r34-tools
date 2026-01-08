@@ -38,6 +38,13 @@ const batchQueue = {
   intervalId: null      // Interval for processing
 };
 
+// HTML fetch stats (reported by content scripts)
+const fetchStats = {
+  fetchingHtml: 0,
+  rateLimited: 0,
+  pending: 0
+};
+
 /**
  * Calculate exponential backoff delay
  * @param {number} attempts - Current attempt number (starts at 1)
@@ -58,8 +65,9 @@ function calculateBackoffDelay(attempts, initialDelay = 1000) {
  * @param {string} conflictAction - 'overwrite' or 'uniquify'
  * @param {number} maxAttempts - Max retry attempts from settings
  * @param {number} tabId - Content script tab ID (for notifications)
+ * @param {string} postId - Optional post ID for indicator updates
  */
-function addToQueue(downloadId, url, filename, conflictAction, maxAttempts, tabId) {
+function addToQueue(downloadId, url, filename, conflictAction, maxAttempts, tabId, postId = null) {
   const queueItem = {
     downloadId,
     url,
@@ -68,6 +76,7 @@ function addToQueue(downloadId, url, filename, conflictAction, maxAttempts, tabI
     attempts: 1,
     maxAttempts,
     tabId,
+    postId,
     state: 'downloading',
     error: null,
     retryTimeoutId: null
@@ -269,7 +278,8 @@ async function processBatchQueue() {
     const tab = tabs[0];
     const response = await browser.tabs.sendMessage(tab.id, {
       action: 'fetchAndDownload',
-      postUrl: item.postUrl
+      postUrl: item.postUrl,
+      originTabId: item.tabId || null
     }).catch(err => {
       console.error('[R34 Tools] Failed to send fetch request:', err);
       return { success: false, error: err.message };
@@ -293,16 +303,22 @@ async function processBatchQueue() {
 }
 
 /**
- * Calculate queue statistics
+ * Calculate queue statistics (unified from all sources)
  */
 function getQueueStats() {
   const stats = {
+    // Download queue stats
     downloading: 0,
     paused: 0,
     completed: 0,
     failed: 0,
     totalInitiated: progressState.totalInitiated,
-    totalCompleted: progressState.totalCompleted
+    totalCompleted: progressState.totalCompleted,
+
+    // HTML fetch stats (from content scripts)
+    fetchingHtml: fetchStats.fetchingHtml,
+    rateLimited: fetchStats.rateLimited,
+    pending: fetchStats.pending
   };
 
   // Count items in download queue
@@ -339,6 +355,37 @@ async function broadcastQueueStats() {
     });
   } catch (error) {
     console.error('[R34 Tools Queue] Failed to broadcast stats:', error);
+  }
+}
+
+/**
+ * Send indicator update to content script
+ * @param {string} postId - Post ID
+ * @param {string} state - Indicator state ('downloading', 'success', 'failed')
+ * @param {number} tabId - Optional specific tab ID, otherwise broadcast to all tabs
+ */
+async function sendIndicatorUpdate(postId, state, tabId = null) {
+  if (!postId) return;
+
+  const message = {
+    action: 'updateIndicator',
+    postId: postId,
+    state: state
+  };
+
+  try {
+    if (tabId) {
+      // Send to specific tab
+      await browser.tabs.sendMessage(tabId, message).catch(() => {});
+    } else {
+      // Broadcast to all tabs
+      const tabs = await browser.tabs.query({ url: '*://rule34.xxx/*' });
+      tabs.forEach(tab => {
+        browser.tabs.sendMessage(tab.id, message).catch(() => {});
+      });
+    }
+  } catch (error) {
+    console.error('[R34 Tools] Failed to send indicator update:', error);
   }
 }
 
@@ -567,6 +614,17 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     return { success: true };
   }
 
+  // Update HTML fetch stats (from content scripts)
+  if (message.action === 'updateFetchStats') {
+    fetchStats.fetchingHtml = message.stats.fetchingHtml || 0;
+    fetchStats.rateLimited = message.stats.rateLimited || 0;
+    fetchStats.pending = message.stats.pending || 0;
+
+    // Broadcast unified stats
+    broadcastQueueStats();
+    return { success: true };
+  }
+
   // Get current queue stats
   if (message.action === 'getQueueStats') {
     return { success: true, stats: getQueueStats() };
@@ -584,7 +642,20 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
 
       console.log('[R34 Tools] Download request:', message.filename);
 
-      const tabId = sender.tab ? sender.tab.id : null;
+      // For batch downloads, content scripts can specify which tab should receive UI updates.
+      const tabId = (typeof message.originTabId === 'number' && message.originTabId)
+        ? message.originTabId
+        : (sender.tab ? sender.tab.id : null);
+
+      // Ensure manual/non-batch downloads are counted so totalCompleted never exceeds totalInitiated.
+      // Batch totals are accounted for by addBatchDownloads/addToBatchTotal.
+      if (!message.batchCounted) {
+        progressState.totalInitiated++;
+        if (progressState.resetTimeoutId) {
+          clearTimeout(progressState.resetTimeoutId);
+          progressState.resetTimeoutId = null;
+        }
+      }
 
       // Check if we're currently rate limited
       if (rateLimitState.isRateLimited) {
@@ -599,6 +670,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
           attempts: 1,
           maxAttempts: Math.min(settings.maxDownloadRetries, 10),
           tabId: tabId,
+          postId: message.postId || null,
           state: 'paused',
           error: null,
           retryTimeoutId: null
@@ -606,6 +678,11 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
 
         // Add to paused queue
         rateLimitState.pausedDownloads.push(queueItem);
+
+        // Reflect queued state in UI (use downloading spinner)
+        if (queueItem.postId) {
+          sendIndicatorUpdate(queueItem.postId, 'downloading', null);
+        }
 
         // Broadcast stats update
         broadcastQueueStats();
@@ -629,8 +706,14 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
           message.filename,
           settings.conflictAction,
           Math.min(settings.maxDownloadRetries, 10), // Cap at 10
-          tabId
+          tabId,
+          message.postId || null // Include postId for indicator updates
         );
+      }
+
+      // Immediately reflect downloading state in UI (broadcast)
+      if (message.postId) {
+        sendIndicatorUpdate(message.postId, 'downloading', null);
       }
 
       console.log(`[R34 Tools] Download started with ID ${downloadId}`);
@@ -744,6 +827,11 @@ browser.downloads.onChanged.addListener(async (downloadDelta) => {
         }).catch(err => console.log('[R34 Tools Queue] Tab closed, cannot send notification'));
       }
 
+      // Update download indicator to success (broadcast to all rule34 tabs)
+      if (queueItem.postId) {
+        sendIndicatorUpdate(queueItem.postId, 'success', null);
+      }
+
       // Broadcast stats update
       broadcastQueueStats();
 
@@ -806,6 +894,11 @@ browser.downloads.onChanged.addListener(async (downloadDelta) => {
             filename: queueItem.filename,
             attempts: queueItem.attempts
           }).catch(err => console.log('[R34 Tools Queue] Tab closed, cannot send notification'));
+        }
+
+        // Update download indicator to failed (broadcast to all rule34 tabs)
+        if (queueItem.postId) {
+          sendIndicatorUpdate(queueItem.postId, 'failed', null);
         }
 
         // Broadcast stats update

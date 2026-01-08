@@ -40,16 +40,25 @@
   // MESSAGE HANDLERS
   // =============================================================================
 
-  // Track latest stats from both sources
-  let latestDownloadStats = { downloading: 0, paused: 0, completed: 0, failed: 0, totalInitiated: 0, totalCompleted: 0 };
-  let latestFetchStats = { fetchingHtml: 0, rateLimited: 0, pending: 0 };
+  // Track latest unified stats from background (single source of truth)
+  let latestStats = {
+    downloading: 0,
+    paused: 0,
+    completed: 0,
+    failed: 0,
+    totalInitiated: 0,
+    totalCompleted: 0,
+    fetchingHtml: 0,
+    rateLimited: 0,
+    pending: 0
+  };
 
   // Fetch current stats from background on page load
   async function loadCurrentStats() {
     try {
       const response = await browser.runtime.sendMessage({ action: 'getQueueStats' });
       if (response && response.success) {
-        latestDownloadStats = response.stats;
+        latestStats = response.stats;
         updateQueueStatusDisplay();
         console.log('[R34 Tools] Loaded current stats from background:', response.stats);
       }
@@ -65,23 +74,57 @@
     } else if (message.action === 'savePage') {
       await savePageData();
     } else if (message.action === 'queueStatsUpdate') {
-      latestDownloadStats = message.stats;
+      latestStats = message.stats;
       updateQueueStatusDisplay();
+    } else if (message.action === 'downloadNotification') {
+      // Background queue sends user-facing notifications here
+      try {
+        const type = message.type;
+        if (!showNotification) return;
+
+        if (type === 'success') {
+          showNotification(`Downloaded: ${message.filename}`, 'success');
+        } else if (type === 'failed') {
+          showNotification(`Download failed: ${message.filename}`, 'error');
+        } else if (type === 'retrying') {
+          showNotification(
+            `Retrying: ${message.filename}\n→ in ${message.delay}s (${message.attempts}/${message.maxAttempts})`,
+            'info'
+          );
+        } else if (type === 'rateLimitPause') {
+          showNotification(`Rate limited. Pausing queue for ${message.delay}s`, 'error');
+        } else if (type === 'rateLimitResume') {
+          showNotification('Rate limit cleared. Resuming downloads…', 'success');
+        }
+      } catch (e) {
+        // Best-effort UI
+      }
+    } else if (message.action === 'updateIndicator') {
+      // Update download indicator state
+      const { updateIndicatorState } = window.R34Tools || {};
+      if (updateIndicatorState && message.postId) {
+        await updateIndicatorState(message.postId, message.state);
+
+        // When background confirms completion, persist to DownloadTracker immediately
+        if (message.state === 'success') {
+          const { DownloadTracker } = window.R34Tools || {};
+          if (DownloadTracker?.markAsDownloaded) {
+            await DownloadTracker.markAsDownloaded(message.postId);
+          }
+        }
+      }
     } else if (message.action === 'fetchAndDownload') {
       // Background is requesting us to fetch HTML and download
-      const success = await downloadFromThumbnail(message.postUrl);
+      const success = await downloadFromThumbnail(message.postUrl, {
+        originTabId: message.originTabId,
+        batchCounted: true
+      });
       return { success };
     }
   });
 
-  // Listen for HTML fetch stats updates
-  window.addEventListener('r34tools-fetch-stats-updated', (event) => {
-    latestFetchStats = event.detail;
-    updateQueueStatusDisplay();
-  });
-
   /**
-   * Update queue status display in sidebar
+   * Update queue status display in sidebar (unified stats from background)
    */
   function updateQueueStatusDisplay() {
     const statusText = document.getElementById('r34-queue-status-text');
@@ -91,8 +134,7 @@
       return;
     }
 
-    const { downloading, paused, completed, failed, totalInitiated, totalCompleted } = latestDownloadStats;
-    const { fetchingHtml, rateLimited, pending } = latestFetchStats;
+    const { downloading, paused, completed, failed, totalInitiated, totalCompleted, fetchingHtml, rateLimited, pending } = latestStats;
     const total = downloading + paused + completed + failed + fetchingHtml + rateLimited + pending;
 
     if (total === 0 && totalInitiated === 0) {
@@ -119,7 +161,7 @@
     // Update progress bar
     if (progressBar && progressBarContainer && totalInitiated > 0) {
       progressBarContainer.style.display = 'block';
-      const percent = (totalCompleted / totalInitiated) * 100;
+      const percent = Math.max(0, Math.min(100, (totalCompleted / totalInitiated) * 100));
       progressBar.style.width = `${percent}%`;
     } else if (progressBarContainer) {
       progressBarContainer.style.display = 'none';
@@ -466,11 +508,60 @@
   // IMAGE/VIDEO DOWNLOAD BUTTON FOR POST PAGES
   // =============================================================================
 
+  function isLikelyPromoContainer(element) {
+    if (!element || !element.closest) return false;
+
+    // Rule34 uses pv_leaderboard for self-promo blocks; ads often use data-nosnippet.
+    const promoAncestor = element.closest(
+      '#pv_leaderboard, [id*="leaderboard"], [id^="pv_"], [data-nosnippet], [class*="advert"], [class*="sponsor"], [class*="promo"], [class*="ad"], [id*="advert"], [id*="sponsor"], [id*="promo"], [id*="ad"]'
+    );
+    if (promoAncestor) return true;
+
+    // Self-promo images are served from /images/artist_selfpromo/
+    const src = (element.tagName === 'IMG')
+      ? (element.currentSrc || element.src || '')
+      : '';
+    if (src && src.includes('/images/artist_selfpromo/')) return true;
+
+    return false;
+  }
+
+  function getPrimaryPostMediaElement() {
+    // Prefer the canonical post media element when present.
+    const canonicalImage = document.getElementById('image');
+    if (canonicalImage && !isLikelyPromoContainer(canonicalImage)) return canonicalImage;
+
+    // Prefer the actual video element (gelcom/fluid wrappers vary).
+    const gelcom = document.getElementById('gelcomVideoPlayer');
+    if (gelcom) {
+      const gelcomVideo = gelcom.tagName === 'VIDEO' ? gelcom : gelcom.querySelector?.('video');
+      if (gelcomVideo && !isLikelyPromoContainer(gelcomVideo)) return gelcomVideo;
+    }
+
+    const anyVideo = document.querySelector('video');
+    if (anyVideo && !isLikelyPromoContainer(anyVideo)) return anyVideo;
+
+    // Fallback: pick the first plausible post media image that isn't a promo.
+    const candidates = document.querySelectorAll('img[onclick*="Note"], img[onclick*="note"], img.img, .flexi img');
+    for (const img of candidates) {
+      if (isLikelyPromoContainer(img)) continue;
+
+      const src = img.currentSrc || img.src || '';
+      if (!src) continue;
+      if (src.includes('/images/artist_selfpromo/')) continue;
+
+      // Real post media usually comes from /samples/ or /images/
+      if (src.includes('/samples/') || src.includes('/images/')) return img;
+    }
+
+    return null;
+  }
+
   /**
    * Create download button that appears on image/video hover
    */
   async function createImageDownloadButton() {
-    const imageElement = safeQuerySelector(SELECTORS.imageElement);
+    const imageElement = getPrimaryPostMediaElement();
     if (!imageElement) return;
 
     // Check if button already exists
@@ -797,18 +888,45 @@
       return;
     }
 
-    // Extract post links for each thumbnail
-    const downloadTasks = [];
+    // Extract and de-dupe post links for each thumbnail (skip ads/selfpromo)
+    const uniqueByPostId = new Map(); // postId -> { postUrl, thumbnail }
     for (const img of thumbnails) {
+      // Reuse the same ad filtering used for button injection
+      if (typeof isValidPostThumbnail === 'function' && !isValidPostThumbnail(img)) {
+        continue;
+      }
+
       const postLink = findPostLink(img);
-      if (postLink && postLink.href) {
-        downloadTasks.push(postLink.href);
+      if (!postLink?.href) continue;
+
+      const postId = extractPostId(postLink.href);
+      if (!postId) continue;
+
+      if (!uniqueByPostId.has(postId)) {
+        uniqueByPostId.set(postId, { postUrl: postLink.href, thumbnail: img });
       }
     }
+
+    const downloadTasks = Array.from(uniqueByPostId.values()).map(v => v.postUrl);
 
     if (downloadTasks.length === 0) {
       showNotification('No valid post links found', 'error');
       return;
+    }
+
+    // Show queued/downloading indicators immediately so the UI updates without reload
+    try {
+      const settings = await browser.storage.local.get({ enableDownloadTracking: true });
+      if (settings.enableDownloadTracking) {
+        const { showDownloadingIndicator } = window.R34Tools || {};
+        if (showDownloadingIndicator) {
+          for (const [postId, info] of uniqueByPostId.entries()) {
+            await showDownloadingIndicator(postId, info.thumbnail);
+          }
+        }
+      }
+    } catch (e) {
+      // Non-fatal: indicators are best-effort
     }
 
     // Send all posts to background for persistent processing
@@ -1838,6 +1956,7 @@
   /**
    * Add download and full-res buttons to all thumbnails
    * Refactored from 647 lines to ~40 lines
+   * Now filters out advertisements
    */
   async function addThumbnailDownloadButtons() {
     const thumbnails = safeQuerySelectorAll(SELECTORS.thumbnails);
@@ -1847,17 +1966,12 @@
       // Skip if already processed
       if (img.parentElement.querySelector(`.${CLASS_NAMES.thumbDownload}`)) continue;
 
+      // Validate this is a real post thumbnail (not an ad)
+      if (!isValidPostThumbnail(img)) {
+        continue;
+      }
+
       const postLink = findPostLink(img);
-      if (!postLink) {
-        console.warn('[R34 Tools] No post link found for thumbnail:', img);
-        continue;
-      }
-
-      if (!postLink.href) {
-        console.error('[R34 Tools] Post link has no href:', postLink);
-        continue;
-      }
-
       console.log('[R34 Tools] Setting up buttons for:', postLink.href);
 
       // Setup buttons using ui-components module
@@ -1909,8 +2023,40 @@
   // =============================================================================
 
   /**
+   * Validate that an image is a valid post thumbnail (not an ad)
+   * @param {HTMLImageElement} img - Image element to validate
+   * @returns {boolean} True if valid thumbnail
+   */
+  function isValidPostThumbnail(img) {
+    // Must have a valid post link
+    const postLink = findPostLink(img);
+    if (!postLink || !postLink.href) return false;
+
+    // Post link must contain a post ID
+    const postId = extractPostId(postLink.href);
+    if (!postId) return false;
+
+    // Additional check: exclude common ad containers
+    const adContainers = ['ad', 'advertisement', 'sponsor', 'promo'];
+    let element = img;
+    for (let i = 0; i < 5 && element; i++) {
+      const classes = element.className || '';
+      const id = element.id || '';
+      const combined = (classes + ' ' + id).toLowerCase();
+
+      if (adContainers.some(term => combined.includes(term))) {
+        return false;
+      }
+      element = element.parentElement;
+    }
+
+    return true;
+  }
+
+  /**
    * Upgrade thumbnail images to sample quality
    * Refactored from 87 lines to ~30 lines
+   * Now filters out advertisements and validates thumbnails
    */
   async function upgradeToSampleQuality() {
     const settings = await settingsManager.getAll();
@@ -1922,9 +2068,12 @@
     const thumbnails = safeQuerySelectorAll(SELECTORS.thumbnails);
 
     for (const img of thumbnails) {
-      if (!processedImages.has(img)) {
-        await upgradeImageWithFallback(img, preferFullRes);
+      // Skip if already processed or not a valid post thumbnail
+      if (processedImages.has(img) || !isValidPostThumbnail(img)) {
+        continue;
       }
+
+      await upgradeImageWithFallback(img, preferFullRes);
     }
   }
 
