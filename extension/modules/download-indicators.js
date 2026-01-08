@@ -442,25 +442,87 @@
    */
   async function addPostPageIndicator(postId, state = 'success') {
     // Check if indicator already exists
-    if (document.querySelector('.r34-postPage-indicator')) {
-      return;
+    if (document.querySelector('.r34-postPage-indicator')) return;
+
+    // Find the main media element on post pages (match content.js robustness)
+    const { safeQuerySelector, SELECTORS } = window.R34Tools || {};
+    let mediaElement = safeQuerySelector && SELECTORS?.imageElement
+      ? safeQuerySelector(SELECTORS.imageElement)
+      : document.querySelector('#image, img.img, .flexi img, video, #gelcomVideoPlayer');
+    if (!mediaElement) return;
+
+    // If we matched a container (e.g. gelcom wrapper), drill to the actual video
+    if (mediaElement.tagName !== 'IMG' && mediaElement.tagName !== 'VIDEO') {
+      const innerVideo = mediaElement.querySelector?.('video') || document.querySelector('video');
+      if (innerVideo) mediaElement = innerVideo;
     }
 
-    // Find the media container
-    const mediaContainer = document.querySelector('#image, #gelcomVideoPlayer, video');
-    if (!mediaContainer) return;
+    const wrapper = mediaElement.parentElement;
+    if (!wrapper) return;
 
-    const container = mediaContainer.parentElement;
-    if (!container) return;
-
-    // Make sure container is positioned
-    if (getComputedStyle(container).position === 'static') {
-      container.style.position = 'relative';
+    // Make sure wrapper is positioned for absolute overlays
+    if (getComputedStyle(wrapper).position === 'static') {
+      wrapper.style.position = 'relative';
     }
 
-    const indicator = await createIndicator('postPage', state);
+    // Use the compact checkmark badge style (consistent with thumbnails)
+    const indicator = await createIndicator('thumbnail', state);
+    indicator.classList.add('r34-postPage-indicator');
     indicator.dataset.postId = postId;
-    container.appendChild(indicator);
+
+    // Prefer shared badges container (top-right over media bounds)
+    const { ensureOverlayContainers, positionButtonsForMedia } = window.R34Tools || {};
+    const { badges } = ensureOverlayContainers ? ensureOverlayContainers(wrapper) : {};
+
+    const reposition = () => {
+      if (!positionButtonsForMedia) return;
+      // Align overlays to the media bounds
+      positionButtonsForMedia(wrapper, mediaElement, null, null, null, null);
+    };
+
+    // Initial position (may be wrong until media has dimensions)
+    reposition();
+
+    if (badges) {
+      badges.insertBefore(indicator, badges.firstChild);
+    } else {
+      wrapper.appendChild(indicator);
+    }
+
+    // Reposition once media size is known
+    if (mediaElement.tagName === 'IMG') {
+      mediaElement.addEventListener('load', reposition, { once: true });
+      if (mediaElement.complete) {
+        // next tick to ensure layout settled
+        setTimeout(reposition, 0);
+      }
+    } else if (mediaElement.tagName === 'VIDEO') {
+      mediaElement.addEventListener('loadedmetadata', reposition, { once: true });
+      if (mediaElement.readyState >= 1) {
+        setTimeout(reposition, 0);
+      }
+    }
+
+    // Hover visibility support for post pages
+    const settings = await browser.storage.local.get({ downloadIndicatorVisibility: 'always' });
+    const isHoverMode = settings.downloadIndicatorVisibility === 'hover';
+    if (isHoverMode) {
+      const show = () => { indicator.style.opacity = '1'; };
+      const hide = () => { indicator.style.opacity = '0'; };
+
+      // Bind once per wrapper
+      if (wrapper.dataset.r34PostIndicatorHoverBound !== 'true') {
+        wrapper.addEventListener('mouseenter', show);
+        wrapper.addEventListener('mouseleave', hide);
+        // Also bind to the media element for cases where wrapper isn't the hovered target
+        mediaElement.addEventListener('mouseenter', show);
+        mediaElement.addEventListener('mouseleave', hide);
+        wrapper.dataset.r34PostIndicatorHoverBound = 'true';
+      }
+
+      // Start hidden even if inserted under cursor; user expects hover-in/out
+      hide();
+    }
   }
 
   /**
@@ -513,7 +575,7 @@
    * Check and mark current post page if downloaded
    */
   async function markDownloadedPostPage() {
-    const postId = extractPostId();
+    const postId = extractPostId ? extractPostId(window.location.href) : null;
     if (!postId) return;
 
     const isDownloaded = await DownloadTracker.isDownloaded(postId);

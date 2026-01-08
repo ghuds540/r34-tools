@@ -683,6 +683,7 @@
     wrapper.addEventListener('mouseenter', showElements);
     wrapper.addEventListener('mouseleave', hideElements);
     imageElement.addEventListener('mouseenter', showElements);
+    imageElement.addEventListener('mouseleave', hideElements);
   }
 
   // =============================================================================

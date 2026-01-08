@@ -207,6 +207,7 @@
   function createDimensionsBadge(wrapper, mediaElement) {
     const badge = document.createElement('div');
     badge.className = CLASS_NAMES.dimensionsBadge;
+    badge.dataset.mediaType = (mediaElement?.tagName || '').toLowerCase();
     badge.style.cssText = `
       position: relative;
       padding: 5px 9px;
@@ -223,7 +224,7 @@
       white-space: nowrap;
       max-width: 100%;
       min-width: 0;
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       overflow: hidden;
       text-overflow: ellipsis;
       backdrop-filter: blur(8px);
@@ -254,9 +255,13 @@
     const shouldShowResolution = isVideo && height >= 480;
     
     let text = shouldShowResolution ? resolutionLabel : `${width}×${height}`;
-    
-    if (hasAudio) {
-      text += ' 🔊';
+
+    // For videos, always show a speaker indicator so spacing is consistent.
+    // (Images should not show a speaker icon.)
+    const mediaType = (badge?.dataset?.mediaType || '').toLowerCase();
+    const isVideoElement = mediaType === 'video';
+    if (isVideoElement && shouldShowResolution) {
+      text += hasAudio ? ' 🔊' : ' 🔇';
     }
     
     badge.textContent = text;

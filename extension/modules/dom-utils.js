@@ -140,8 +140,12 @@
       controls.style.left = `${offsetLeft}px`;
     }
     if (badges) {
-      // Reserve left space for the 2-column control buttons (download + upscale)
-      const reservedLeft = (BUTTON_STYLES.fullRes.left + BUTTON_STYLES.fullRes.width) + 8;
+      // Reserve left space only when the 2-column control buttons exist.
+      // Post pages (and other callers) may use badges with no controls.
+      const shouldReserveLeft = Boolean(downloadBtn || fullResBtn);
+      const reservedLeft = shouldReserveLeft
+        ? (BUTTON_STYLES.fullRes.left + BUTTON_STYLES.fullRes.width) + 8
+        : 0;
       const mediaWidth = mediaRect.width / scale;
       const leftInset = Math.max(0, reservedLeft);
       const availableWidth = Math.max(0, mediaWidth - leftInset);
